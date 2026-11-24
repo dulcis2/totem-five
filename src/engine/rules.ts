@@ -47,6 +47,12 @@ export interface Rules {
   repeatCanTargetRepeat: boolean;
   /** Hard safety cap on chained Repeat hops. */
   maxRepeatDepth: number;
+  /**
+   * Playtest variant for the Yellow card's effect.
+   * 'repeat': activate another card on your table again (design document).
+   * 'draw1': draw one card from the shared deck.
+   */
+  yellowEffect: 'repeat' | 'draw1';
 
   // --- Open question 3: Cancel reaction ------------------------------------
   counterEnabled: boolean;
@@ -87,6 +93,7 @@ export const DEFAULT_RULES: Rules = {
 
   repeatCanTargetRepeat: false,
   maxRepeatDepth: 5,
+  yellowEffect: 'repeat',
 
   counterEnabled: true,
   counterCost: 2,

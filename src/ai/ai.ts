@@ -64,6 +64,15 @@ function unseenCounts(v: PlayerView): Record<CardType, number> {
   return out;
 }
 
+/** Expected value of drawing one unseen card for the owner of table `t` (Yellow "Draw 1" variant). */
+function drawValue(v: PlayerView, t: CardType[]): number {
+  if (v.deckCount === 0) return 0;
+  const unseen = unseenCounts(v);
+  const total = Object.values(unseen).reduce((a, b) => a + b, 0) || 1;
+  // A card in hand is worth a fraction of a card on the table (it still has to be played).
+  return CARD_TYPES.reduce((acc, ty) => acc + (unseen[ty] / total) * cardValue(t, ty, v.rules), 0) * 0.6 + 0.5;
+}
+
 /** Estimated value of activating the effect of `type` for me, given the current view. */
 function effectValue(v: PlayerView, type: CardType, myT: CardType[], exclude: string[], depth = 0): number {
   const r = v.rules;
@@ -99,6 +108,7 @@ function effectValue(v: PlayerView, type: CardType, myT: CardType[], exclude: st
       ) + 0.3;
     }
     case 'repeat': {
+      if (r.yellowEffect === 'draw1') return drawValue(v, myT);
       if (depth >= 2) return 0;
       const targets = v.myTable.filter(
         (c) => !exclude.includes(c.id) && (c.type !== 'repeat' || r.repeatCanTargetRepeat),
@@ -168,6 +178,7 @@ function threatOf(v: PlayerView, type: CardType, depth = 0): number {
     case 'return':
       return v.oppDiscard.length ? Math.max(...v.oppDiscard.map((c) => cardValue(oppT, c.type, r) * 0.7)) : 0;
     case 'repeat': {
+      if (r.yellowEffect === 'draw1') return v.deckCount ? drawValue(v, types(v.oppTable)) : 0;
       if (depth >= 2) return 0;
       const targets = v.oppTable.filter((c) => c.type !== 'repeat' || r.repeatCanTargetRepeat);
       return targets.length ? Math.max(...targets.map((c) => threatOf(v, c.type, depth + 1))) : 0;

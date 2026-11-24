@@ -133,6 +133,46 @@ describe('card effects', () => {
     expect(p.kind === 'effect' && p.choice.type === 'selectCard' && p.choice.cards.map((c) => c.type)).toEqual(['return']);
   });
 
+  describe('Yellow variant: Draw 1', () => {
+    const rules = { yellowEffect: 'draw1' as const };
+
+    it('draws the top card of the deck and stays on the table', () => {
+      const s = setup({ human: { hand: ['repeat'], table: ['shatter'] }, ai: { table: ['cancel'], hand: ['return'] } }, { rules, deckTop: ['discard'] });
+      const topId = s.deck[0].id;
+      const n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'repeat') });
+      expect(n.players.human.table.map((c) => c.type)).toEqual(['shatter', 'repeat']);
+      expect(n.players.human.hand.map((c) => c.id)).toEqual([topId]);
+      // No selection: Shatter on the table is NOT re-activated.
+      expect(n.players.ai.table.map((c) => c.type)).toEqual(['cancel']);
+      expect(n.current).toBe('ai');
+      expect(checkInvariants(n)).toBeNull();
+    });
+
+    it('fizzles on an empty deck', () => {
+      const s = setup({ human: { hand: ['repeat'] }, ai: { hand: ['shatter'] } }, { rules });
+      s.players.ai.discard.push(...s.deck.splice(0));
+      const n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'repeat') });
+      expect(n.players.human.hand).toHaveLength(0);
+      expect(n.players.human.table.map((c) => c.type)).toEqual(['repeat']);
+      expect(n.log.some((l) => l.text.includes('fizzles'))).toBe(true);
+    });
+
+    it('reshuffles discards first when that empty-deck rule is on', () => {
+      const s = setup({ human: { hand: ['repeat'] }, ai: { hand: ['shatter'] } }, { rules: { ...rules, emptyDeck: 'reshuffleDiscards' } });
+      s.players.ai.discard.push(...s.deck.splice(0));
+      const n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'repeat') });
+      expect(n.players.human.hand).toHaveLength(1);
+      expect(checkInvariants(n)).toBeNull();
+    });
+
+    it('is unplayable on an empty deck when targets are required', () => {
+      const s = setup({ human: { hand: ['repeat', 'shatter'] }, ai: { table: ['cancel'] } }, { rules: { ...rules, allowPlayWithoutTarget: false } });
+      expect(legalActions(s, 'human')).toHaveLength(2);
+      s.players.ai.discard.push(...s.deck.splice(0));
+      expect(legalActions(s, 'human').map((a) => (a.type === 'play' ? a.cardId : ''))).toEqual([idOf(s, 'human', 'hand', 'shatter')]);
+    });
+  });
+
   it('Repeat with nothing to repeat fizzles but stays on the table', () => {
     const s = setup({ human: { hand: ['repeat'] }, ai: { hand: ['shatter'] } });
     const n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'repeat') });
@@ -270,6 +310,8 @@ describe('full games (AI vs AI)', () => {
       { allowPlayWithoutTarget: false },
       { playedCardEntersTable: 'afterEffect' },
       { repeatCanTargetRepeat: true, counterCanBeCountered: true, cancelAllowBottom: true },
+      { yellowEffect: 'draw1' },
+      { yellowEffect: 'draw1', emptyDeck: 'reshuffleDiscards' },
     ];
     for (const v of variants) for (let seed = 1; seed <= 40; seed++) playOut(seed, v);
   });

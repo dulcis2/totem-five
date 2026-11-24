@@ -13,6 +13,7 @@
     "start": "node server.mjs",
     "preview": "npm run build && npm start",
     "test": "vitest run",
+    "sim:yellow": "vitest run --config sim/vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

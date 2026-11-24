@@ -12,7 +12,7 @@
  * To add a new card: add its type to CardType, add a definition here, done.
  */
 import type { Rules } from './rules';
-import { IllegalActionError, countType, log, moveCard, other, poss, subj, verb } from './state';
+import { IllegalActionError, countType, log, moveCard, other, poss, shuffle, subj, verb } from './state';
 import type { Card, CardType, EffectChoice, EffectContext, GameState } from './types';
 
 export type ResolveInput = { cardId: string } | { top: string[]; bottom: string[] };
@@ -49,6 +49,30 @@ function repeatTargets(s: GameState, ctx: Pick<EffectContext, 'player' | 'chain'
   );
 }
 
+/** Yellow "Draw 1" variant: can a card be drawn (possibly after reshuffling discards)? */
+function canDrawOne(s: GameState): boolean {
+  if (s.deck.length > 0) return true;
+  return s.rules.emptyDeck === 'reshuffleDiscards' && s.players.human.discard.length + s.players.ai.discard.length > 0;
+}
+
+function drawOne(s: GameState, ctx: EffectContext) {
+  if (s.deck.length === 0 && s.rules.emptyDeck === 'reshuffleDiscards') {
+    const pile = [...s.players.human.discard, ...s.players.ai.discard];
+    if (pile.length > 0) {
+      s.players.human.discard = [];
+      s.players.ai.discard = [];
+      s.deck = shuffle(s, pile);
+      log(s, 'info', `The deck is empty — both discard piles are shuffled into a new deck (${pile.length} cards).`);
+    }
+  }
+  if (s.deck.length === 0) {
+    fizzle(s, ctx, 'deck is empty');
+    return;
+  }
+  s.players[ctx.player].hand.push(s.deck.shift()!);
+  log(s, 'effect', `${subj(ctx.player)} ${verb(ctx.player, 'draw')} a card.`, ctx.player);
+}
+
 export const CARD_DEFS: Record<CardType, CardDefinition> = {
   repeat: {
     type: 'repeat',
@@ -58,8 +82,12 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
     ink: '#2a2105',
     glyph: '↻',
     text: 'Choose another card on your table and activate its effect again.',
-    hasTarget: (s, ctx) => repeatTargets(s, ctx).length > 0,
+    hasTarget: (s, ctx) => (s.rules.yellowEffect === 'draw1' ? canDrawOne(s) : repeatTargets(s, ctx).length > 0),
     begin(s, ctx) {
+      if (s.rules.yellowEffect === 'draw1') {
+        drawOne(s, ctx);
+        return null;
+      }
       const cards = repeatTargets(s, ctx);
       if (cards.length === 0) {
         fizzle(s, ctx, 'no other card on the table to repeat');

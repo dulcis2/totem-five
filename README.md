@@ -81,6 +81,24 @@ Other interpretations the document doesn't spell out, also configurable:
 - **Turn limit:** 300 turns, then a draw (a safety valve; real games last ~15 turns).
 - First player is random by default.
 
+### Playtest variant: Yellow card — Repeat vs Draw 1
+
+`rules.yellowEffect` switches the Yellow card between **Repeat** (default, per the design
+document) and **Draw 1** (draw the top card of the shared deck; it fizzles on an empty deck,
+or reshuffles discards first under that empty-deck rule). The card keeps its id `repeat`
+internally. The variant is engine/AI only — the card face and Rule variants dialog still show Repeat.
+
+`npm run sim:yellow` compares the variants over 2,000 AI-vs-AI games each (three runs, ±~1.1 pp each):
+
+| Variant | 1st-player wins | Avg turns (p90) | Five Colors wins | Five-Yellow wins | Yellow plays/game | Yellow on winner's table |
+|---|---|---|---|---|---|---|
+| Repeat | 47–50% | 16.9 (24) | 91% | 2–3% | 4.1 | 1.5 |
+| Draw 1 | 52–54% | 16.5 (22) | 90% | ~1% | 3.1 | 1.2 |
+
+Draw 1 never fizzles (Repeat ~2%) and is countered about as often (~10%). The main
+effect is a ~4-point swing toward the first player, and Yellow becomes a weaker play
+(the AI plays it a quarter less often). Neither variant produces draws.
+
 ## AI
 
 `src/ai/ai.ts` scores every option by how it changes each table's distance to a win
