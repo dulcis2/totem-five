@@ -53,7 +53,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   repeat: {
     type: 'repeat',
     name: 'Repeat',
-    color: '#e9b824',
+    color: '#e2a83a',
     colorName: 'Yellow',
     ink: '#2a2105',
     glyph: '↻',
@@ -85,7 +85,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   shatter: {
     type: 'shatter',
     name: 'Shatter',
-    color: '#c8372d',
+    color: '#c64a33',
     colorName: 'Red',
     ink: '#ffffff',
     glyph: '✸',
@@ -111,7 +111,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   discard: {
     type: 'discard',
     name: 'Discard',
-    color: '#2b2b2b',
+    color: '#2e2723',
     colorName: 'Black',
     ink: '#f3efe6',
     glyph: '✋',
@@ -139,7 +139,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   return: {
     type: 'return',
     name: 'Return',
-    color: '#2e8b57',
+    color: '#4c8a4f',
     colorName: 'Green',
     ink: '#ffffff',
     glyph: '⟲',
@@ -164,7 +164,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   cancel: {
     type: 'cancel',
     name: 'Cancel',
-    color: '#2a6fdb',
+    color: '#2f77b4',
     colorName: 'Blue',
     ink: '#ffffff',
     glyph: '⊘',

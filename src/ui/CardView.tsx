@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { CARD_DEFS } from '../engine/cards';
 import type { CardType } from '../engine/types';
+import { TotemFace } from './TotemFace';
 
 export type CardSize = 'sm' | 'md' | 'lg';
 
@@ -8,6 +9,8 @@ interface Props {
   type?: CardType;
   faceDown?: boolean;
   size?: CardSize;
+  /** Compact carved block used for cards stacked into a totem pole. */
+  block?: boolean;
   selectable?: boolean;
   selected?: boolean;
   dim?: boolean;
@@ -18,10 +21,11 @@ interface Props {
   title?: string;
 }
 
-export function CardView({ type, faceDown, size = 'md', selectable, selected, dim, onClick, badge, className = '', style, title }: Props) {
+export function CardView({ type, faceDown, size = 'md', block, selectable, selected, dim, onClick, badge, className = '', style, title }: Props) {
   const cls = [
     'card',
     `card--${size}`,
+    block ? 'card--block' : '',
     faceDown ? 'card--back' : `card--${type}`,
     selectable ? 'is-selectable' : '',
     selected ? 'is-selected' : '',
@@ -32,38 +36,34 @@ export function CardView({ type, faceDown, size = 'md', selectable, selected, di
   if (faceDown || !type) {
     return (
       <div className={cls} style={style} aria-label="Face-down card">
-        <div className="card__back-art">
-          {['repeat', 'shatter', 'discard', 'return', 'cancel'].map((t) => (
-            <span key={t} style={{ background: CARD_DEFS[t as CardType].color }} />
-          ))}
-        </div>
+        <span className="card__knot" aria-hidden />
       </div>
     );
   }
 
   const def = CARD_DEFS[type];
-  const vars = { ...style, '--c': def.color, '--ink': def.ink } as CSSProperties;
+  const vars = { ...style, '--c': def.color } as CSSProperties;
   const content = (
     <>
-      <span className="card__corner">{def.glyph}</span>
-      <span className="card__totem" aria-hidden>
-        <span className="card__glyph">{def.glyph}</span>
-      </span>
-      <span className="card__name">{def.name}</span>
-      {size !== 'sm' && <span className="card__text">{def.text}</span>}
+      {!block && <span className="card__band" aria-hidden />}
+      <TotemFace type={type} className="card__face" />
+      {!block && <span className="card__name">{def.name}</span>}
+      {!block && size !== 'sm' && <span className="card__text">{def.text}</span>}
+      {!block && <span className="card__band card__band--bottom" aria-hidden />}
       {badge !== undefined && <span className="card__badge">{badge}</span>}
     </>
   );
+  const label = title ?? `${def.name} — ${def.text}`;
 
   if (onClick) {
     return (
-      <button type="button" className={cls} style={vars} onClick={onClick} disabled={!selectable && !selected} title={title ?? `${def.name} — ${def.text}`}>
+      <button type="button" className={cls} style={vars} onClick={onClick} disabled={!selectable && !selected} title={label}>
         {content}
       </button>
     );
   }
   return (
-    <div className={cls} style={vars} title={title ?? `${def.name} — ${def.text}`}>
+    <div className={cls} style={vars} title={label}>
       {content}
     </div>
   );

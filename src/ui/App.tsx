@@ -4,6 +4,7 @@ import { playableCards } from '../engine/engine';
 import type { GameState, LogEntry } from '../engine/types';
 import { CardView } from './CardView';
 import { ArrangeModal, CounterModal, HowToPlay, Modal, PickCardModal, RulesModal } from './Modals';
+import { TotemFace } from './TotemFace';
 import { useGame } from './useGame';
 import { PileView, Progress, TableZone } from './Zones';
 
@@ -103,11 +104,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <h1 className="brand">
-          <span className="brand__bars" aria-hidden>
-            {(['repeat', 'shatter', 'discard', 'return', 'cancel'] as const).map((t) => (
-              <i key={t} style={{ background: CARD_DEFS[t].color }} />
-            ))}
-          </span>
+          <TotemFace type="repeat" className="brand__face" />
           Five Totems
         </h1>
         <div className="topbar__actions">
@@ -146,6 +143,7 @@ export function App() {
               selectableIds={select?.zone === 'opponentTable' ? selectIds : undefined}
               onSelect={pick}
               highlightId={lastId}
+              goal={rules.winCopies}
             />
           </div>
 
@@ -216,6 +214,7 @@ export function App() {
               selectableIds={select?.zone === 'ownTable' ? selectIds : undefined}
               onSelect={pick}
               highlightId={lastId}
+              goal={rules.winCopies}
             />
             <div className="side__row">
               <div className="side__who">
@@ -300,7 +299,7 @@ export function App() {
             <p className="result__big">
               {game.winner === 'human' ? `You win with ${game.winReason}!` : game.winner === 'ai' ? `The AI wins with ${game.winReason}.` : `Draw — ${game.winReason}.`}
             </p>
-            <TableZone label="Winning table" cards={game.winner === 'draw' ? [] : game.players[game.winner].table} />
+            <TableZone label="Winning table" goal={rules.winCopies} cards={game.winner === 'draw' ? [] : game.players[game.winner].table} />
             <div className="btn-row">
               <button type="button" className="btn btn--primary" onClick={() => newGame()}>
                 Play again

@@ -4,38 +4,51 @@ import type { Card, CardType } from '../engine/types';
 import { winNeeds } from '../engine/win';
 import { CardView } from './CardView';
 
-/** Cards on a player's table, grouped by type into overlapping stacks. */
+/**
+ * Cards on a player's table, stacked into one totem pole per type.
+ * Five standing poles = Five Colors; one pole `goal` high = Five Copies.
+ */
 export function TableZone({
   cards,
   selectableIds,
   onSelect,
   highlightId,
   label,
+  goal = 5,
 }: {
   cards: Card[];
   selectableIds?: string[];
   onSelect?: (id: string) => void;
   highlightId?: string | null;
   label: string;
+  goal?: number;
 }) {
-  const groups = CARD_TYPES.map((t) => ({ type: t, cards: cards.filter((c) => c.type === t) })).filter((g) => g.cards.length);
   return (
     <div className="table-zone" aria-label={label}>
-      {groups.length === 0 && <div className="zone-empty">No cards on the table</div>}
-      {groups.map((g) => {
-        const choice = g.cards.find((c) => selectableIds?.includes(c.id));
+      {CARD_TYPES.map((t) => {
+        const pole = cards.filter((c) => c.type === t);
+        if (pole.length === 0) {
+          return (
+            <div key={t} className="pole pole--empty" title={`No ${CARD_DEFS[t].name} totem yet`}>
+              <span className="pole__slot" style={{ ['--c' as string]: CARD_DEFS[t].color }} />
+            </div>
+          );
+        }
+        const choice = pole.find((c) => selectableIds?.includes(c.id));
         return (
-          <div key={g.type} className={`stack ${choice ? 'stack--selectable' : ''}`} style={{ ['--n' as string]: g.cards.length }}>
-            {g.cards.map((c, i) => (
+          <div key={t} className={`pole ${choice ? 'pole--selectable' : ''}`}>
+            <span className="pole__count">
+              {pole.length}/{goal}
+            </span>
+            {pole.map((c) => (
               <CardView
                 key={c.id}
                 type={c.type}
                 size="sm"
-                className={`stack__card ${c.id === highlightId ? 'is-new' : ''}`}
-                style={{ ['--i' as string]: i }}
+                block
+                className={c.id === highlightId ? 'is-new' : ''}
                 selectable={!!choice}
                 onClick={choice && onSelect ? () => onSelect(choice.id) : undefined}
-                badge={i === g.cards.length - 1 && g.cards.length > 1 ? `×${g.cards.length}` : undefined}
               />
             ))}
           </div>
