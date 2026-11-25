@@ -30,6 +30,7 @@ export function TableZone({
               <CardView
                 key={c.id}
                 type={c.type}
+                cardId={c.id}
                 size="sm"
                 className={`stack__card ${c.id === highlightId ? 'is-new' : ''}`}
                 style={{ ['--i' as string]: i }}
@@ -76,7 +77,7 @@ export function PileView({ cards, label, onOpen, highlight }: { cards: Card[]; l
   const top = cards[cards.length - 1];
   return (
     <button type="button" className={`pile ${highlight ? 'pile--highlight' : ''}`} onClick={onOpen} title={`${label} — click to inspect`}>
-      {top ? <CardView type={top.type} size="sm" /> : <div className="card card--sm card--empty">empty</div>}
+      {top ? <CardView type={top.type} cardId={top.id} size="sm" /> : <div className="card card--sm card--empty">empty</div>}
       <span className="pile__label">
         {label} <b>{cards.length}</b>
       </span>

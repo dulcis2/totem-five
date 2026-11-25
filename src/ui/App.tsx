@@ -199,7 +199,7 @@ export function App() {
             <div className="played">
               {shown ? (
                 <>
-                  <CardView key={shown.card.id} type={shown.card.type} size="sm" className="played__card" />
+                  <CardView key={shown.card.id} type={shown.card.type} cardId={shown.card.id} size="sm" className="played__card" />
                   <span className={`played__label played__label--${shown.player}`}>{shown.label}</span>
                 </>
               ) : (
@@ -230,6 +230,7 @@ export function App() {
                 <CardView
                   key={c.id}
                   type={c.type}
+                  cardId={c.id}
                   size="md"
                   className="hand__card"
                   selectable={playable.includes(c.id)}
