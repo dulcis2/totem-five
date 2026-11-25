@@ -124,12 +124,11 @@ h1, h2, h3 { margin: 0; }
   width: var(--w);
   aspect-ratio: 5 / 7;
   border-radius: var(--radius);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0) 40%),
-    var(--c, #555);
+  /* One flat colour per card; the totem art is drawn on top of it. */
+  background: var(--c, #555);
   color: var(--ink, #fff);
-  border: 2px solid rgba(0, 0, 0, 0.35);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 0 0 3px rgba(255, 255, 255, 0.18);
+  border: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 3px 8px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -139,25 +138,19 @@ h1, h2, h3 { margin: 0; }
   user-select: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s;
   overflow: hidden;
+  /* Own stacking context, so a card's text never shows through the card stacked on top of it. */
+  isolation: isolate;
 }
+/* Totem art fills the whole card (viewBox 100 x 140, same 5:7 ratio as the card). */
+.card__art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.card > :not(.card__art) { position: relative; z-index: 1; }
 button.card { cursor: default; }
 .card--sm { --w: var(--card-w-sm); padding: 4px; }
 .card--md { --w: var(--card-w-md); }
 .card--lg { --w: var(--card-w-lg); }
-.card__corner { position: absolute; top: 3px; left: 6px; font-size: calc(var(--w) * 0.13); font-weight: 700; opacity: 0.85; }
-.card__totem {
-  margin-top: calc(var(--w) * 0.1);
-  width: calc(var(--w) * 0.52);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, 0.18);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), inset 0 0 0 calc(var(--w) * 0.04) rgba(0, 0, 0, 0.12);
-}
-.card__glyph { font-size: calc(var(--w) * 0.3); line-height: 1; }
+.card > .card__corner { position: absolute; top: 3px; left: 6px; font-size: calc(var(--w) * 0.13); font-weight: 700; opacity: 0.85; }
 .card__name {
-  margin-top: calc(var(--w) * 0.06);
+  margin-top: calc(var(--w) * 0.1);
   font-family: Georgia, serif;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -165,11 +158,11 @@ button.card { cursor: default; }
   font-size: calc(var(--w) * 0.12);
 }
 .card--sm .card__name { font-size: 0.6rem; letter-spacing: 0.02em; }
-.card__text { margin-top: 4px; font-size: calc(var(--w) * 0.085); line-height: 1.25; opacity: 0.92; }
+.card__text { margin-top: 3px; font-size: calc(var(--w) * 0.075); line-height: 1.2; opacity: 0.92; }
 .card--lg .card__text { font-size: 0.78rem; }
-.card__badge {
+.card > .card__badge {
   position: absolute;
-  bottom: 3px;
+  top: 30%;
   right: 4px;
   background: rgba(0, 0, 0, 0.65);
   color: #fff;
@@ -212,7 +205,7 @@ button.card { cursor: default; }
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end;
   padding: 10px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.12);
@@ -221,10 +214,12 @@ button.card { cursor: default; }
 .stack {
   position: relative;
   width: var(--card-w-sm);
-  height: calc(var(--card-w-sm) * 1.4 + (var(--n) - 1) * 16px);
+  /* Each card sits one totem segment (48/140 of a card) above the one below it,
+     so the carved blocks at the bottom of the cards join into a single pole. */
+  height: calc(var(--card-w-sm) * 1.4 * (1 + 0.342857 * (var(--n) - 1)));
   border-radius: var(--radius);
 }
-.stack__card { position: absolute; left: 0; top: calc(var(--i) * 16px); }
+.stack__card { position: absolute; left: 0; bottom: calc(var(--card-w-sm) * 1.4 * 0.342857 * var(--i)); }
 .stack--selectable .stack__card { cursor: pointer; }
 .zone-empty { color: var(--muted); font-size: 0.85rem; font-style: italic; align-self: center; padding: 4px 8px; }
 
@@ -376,8 +371,6 @@ button.card { cursor: default; }
   .played { grid-column: 1 / -1; flex-direction: row; justify-content: center; }
   .card__text { display: none; }
   .ai-hand__card { margin-left: -34px; }
-  .stack { height: calc(var(--card-w-sm) * 1.4 + (var(--n) - 1) * 12px); }
-  .stack__card { top: calc(var(--i) * 12px); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

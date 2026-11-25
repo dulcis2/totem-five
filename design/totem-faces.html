@@ -1,0 +1,966 @@
+<title>Totem Card Art</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Instrument+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: intro, then one band per colour (5 faces in a row), then a live totem builder */
+:root {
+  --bg: #e6e8e4; --surface: #f4f5f2; --fg: #1c1f1c; --muted: #5d625b; --line: #c9ccc5; --accent: #2a6fdb;
+  --display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #151715; --surface: #1e211e; --fg: #e9ebe6; --muted: #9aa096; --line: #343833; --accent: #7aa8f2; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #151715; --surface: #1e211e; --fg: #e9ebe6; --muted: #9aa096; --line: #343833; --accent: #7aa8f2; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1, h2 { font-family: var(--display); font-weight: 400; text-wrap: balance; margin: 0; letter-spacing: .01em; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.05; }
+h2 { font-size: 1.3rem; }
+p { margin: 0; max-width: 65ch; }
+.lead { color: var(--muted); margin-top: 10px; }
+.tag { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 600; }
+
+section.band { display: grid; gap: 12px; padding-top: 24px; border-top: 1px solid var(--line); }
+.band-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.band-head .sw { width: 12px; height: 12px; border-radius: 3px; background: var(--c); align-self: center; }
+.band-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; }
+@media (max-width: 760px) { .band-body { grid-template-columns: 1fr; } }
+.row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; }
+.face { display: grid; gap: 4px; justify-items: center; }
+.face small { font-size: .72rem; color: var(--muted); text-align: center; line-height: 1.3; }
+
+.demo { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: end; background: var(--surface); border-radius: 10px; padding: 20px; }
+@media (max-width: 640px) { .demo { grid-template-columns: 1fr; } }
+.controls { display: grid; gap: 10px; align-content: end; }
+.controls p { font-size: .9rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 600 .8rem var(--body); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; color: var(--ink); background: var(--c); }
+.chips button.plain { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1.5px var(--line); }
+.chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stack-label { font-size: .72rem; color: var(--muted); text-align: center; margin-top: 6px; text-transform: uppercase; letter-spacing: .08em; }
+
+/* ---- card ---- */
+.tcard { --w: 120px; position: relative; width: var(--w); aspect-ratio: 5 / 7; flex-shrink: 0; border-radius: calc(var(--w) * .06); background: var(--c); color: var(--ink); overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,.25), 0 4px 10px rgba(0,0,0,.18); }
+.tcard svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.tc-name { position: absolute; top: 8%; left: 0; right: 0; text-align: center; font-family: var(--display); font-size: calc(var(--w) * .12); letter-spacing: .04em; text-transform: uppercase; }
+.tc-corner { position: absolute; top: 3%; left: 6%; font-size: calc(var(--w) * .09); font-weight: 600; opacity: .8; }
+.tc-num { position: absolute; top: 3%; right: 6%; font-size: calc(var(--w) * .08); font-weight: 600; opacity: .6; }
+.sm { --w: 86px; }
+
+/* ---- stack: each new card rises by one segment height (48/140 of the card) ---- */
+.stack { --w: 96px; position: relative; width: var(--w); height: calc(var(--w) * 1.4 * (1 + .342857 * (var(--n) - 1))); transition: height .25s ease; }
+.stack .tcard { position: absolute; left: 0; bottom: calc(var(--w) * 1.4 * .342857 * var(--i)); --w: inherit; }
+.stack .tcard.new { animation: drop .32s cubic-bezier(.3,1.4,.5,1); }
+.mini.stack { --w: 70px; }
+@keyframes drop { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .stack .tcard.new { animation: none; } .stack { transition: none; } }
+.note { font-size: .9rem; color: var(--muted); }
+.note code { font-size: .85em; background: var(--surface); padding: 1px 5px; border-radius: 4px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="tag">Five Totems · Carved Creatures</span>
+    <h1>Twenty-five faces for the totem pole</h1>
+    <p class="lead">Each colour is one animal with a fixed set of shared features, so its five faces read as one family. The faces vary only inside those features. The deck has 10 copies of each colour, so each face appears on two cards.</p>
+  </header>
+
+  <section class="band" style="border-top:0;padding-top:0">
+    <div class="demo">
+      <div><div id="mixed"></div><div class="stack-label">Your totem</div></div>
+      <div class="controls">
+        <p>Tap a colour to put a random face of that colour on top. Wings crown whichever card is on top.</p>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="bands"></div>
+
+  <section class="band">
+    <h2>Putting it in the game</h2>
+    <p class="note">Card ids are already <code>shatter-1</code> … <code>shatter-10</code>, so the face is <code>(n − 1) % 5</code> and needs no new game state. The art replaces the circle-and-glyph in <code>CardView.tsx</code>; the table stack in <code>styles.css</code> raises each card by 34% of the card height instead of shifting it down 16px.</p>
+  </section>
+</div>
+
+<script>
+const CARDS = [
+  { t: 'repeat',  name: 'Repeat',  c: '#e9b824', ink: '#2a2105', g: '↻', animal: 'Owl' },
+  { t: 'shatter', name: 'Shatter', c: '#c8372d', ink: '#ffffff', g: '✸', animal: 'Bear' },
+  { t: 'discard', name: 'Discard', c: '#2b2b2b', ink: '#f3efe6', g: '✕', animal: 'Raven' },
+  { t: 'return',  name: 'Return',  c: '#2e8b57', ink: '#ffffff', g: '⟲', animal: 'Turtle' },
+  { t: 'cancel',  name: 'Cancel',  c: '#2a6fdb', ink: '#ffffff', g: '⊘', animal: 'Frog' },
+];
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i, i+2), 16));
+const mix = (a, b, t) => '#' + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
+const pal = c => {
+  const body = c.t === 'discard' ? mix(c.c, '#ffffff', .16) : mix(c.c, '#000000', .28);
+  return { ink: c.ink, bg: c.c, body, light: mix(c.c, '#ffffff', .42), ear: c.t === 'repeat' ? mix(body, c.ink, .5) : mix(c.c, c.ink, c.t === 'discard' ? .55 : .5) };
+};
+/* Card = 100 x 140. Carved block: x 24..76, y 92..140. Side pieces live in x 2..24 (mirrored to 76..98), y 92..140. */
+const st = (P, w = 2.4) => `fill="none" stroke="${P.ink}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
+const mirror = s => s + `<g transform="translate(100 0) scale(-1 1)">${s}</g>`;
+
+/* ---------- eyes (drawn at both eye positions; s = -1 left, +1 right) ---------- */
+const EYES = {
+  ring:    (x, y, P) => `<circle cx="${x}" cy="${y}" r="8" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="4.2" fill="${P.bg}"/><circle cx="${x + 1}" cy="${y - .5}" r="1.8" fill="${P.ink}"/>`,
+  target:  (x, y, P) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="6.2" fill="${P.bg}"/><circle cx="${x}" cy="${y}" r="4" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="1.5" fill="${P.bg}"/>`,
+  square:  (x, y, P) => `<rect x="${x - 7.5}" y="${y - 6}" width="15" height="12" rx="2" fill="${P.ink}"/><rect x="${x - 2.5}" y="${y - 3}" width="6" height="6" fill="${P.bg}"/>`,
+  lidded:  (x, y, P) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${P.ink}"/><circle cx="${x}" cy="${y + 2}" r="2.6" fill="${P.bg}"/><rect x="${x - 8.5}" y="${y - 8.5}" width="17" height="7.5" fill="${P.body}"/><path d="M${x - 8} ${y - 1} H${x + 8}" ${st(P, 2.2)}/>`,
+  star:    (x, y, P) => `<path d="M${x} ${y - 9} L${x + 2.6} ${y - 2.6} L${x + 9} ${y} L${x + 2.6} ${y + 2.6} L${x} ${y + 9} L${x - 2.6} ${y + 2.6} L${x - 9} ${y} L${x - 2.6} ${y - 2.6} Z" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="2" fill="${P.bg}"/>`,
+  angry:   (x, y, P, s) => `<circle cx="${x}" cy="${y + 1.5}" r="4.5" fill="${P.ink}"/><circle cx="${x - s}" cy="${y + 1}" r="1.4" fill="${P.bg}"/><path d="M${x + 7 * s} ${y - 7} L${x - 6 * s} ${y - 2.5}" ${st(P, 2.8)}/>`,
+  dotbrow: (x, y, P) => `<circle cx="${x}" cy="${y + 2}" r="3" fill="${P.ink}"/><path d="M${x - 7} ${y - 3} Q${x} ${y - 9} ${x + 7} ${y - 3}" ${st(P, 2.4)}/>`,
+  slit:    (x, y, P) => `<ellipse cx="${x}" cy="${y}" rx="6.5" ry="7.5" fill="${P.ink}"/><ellipse cx="${x}" cy="${y}" rx="1.5" ry="5" fill="${P.bg}"/>`,
+  crescent:(x, y, P) => `<circle cx="${x}" cy="${y}" r="7" fill="${P.ink}"/><circle cx="${x}" cy="${y - 3}" r="6.4" fill="${P.body}"/>`,
+  almond:  (x, y, P) => `<path d="M${x - 8} ${y} Q${x} ${y - 8} ${x + 8} ${y} Q${x} ${y + 6} ${x - 8} ${y} Z" fill="${P.ink}"/><circle cx="${x}" cy="${y - .5}" r="2" fill="${P.bg}"/>`,
+  diamond: (x, y, P) => `<path d="M${x} ${y - 8} L${x + 8} ${y} L${x} ${y + 8} L${x - 8} ${y} Z" fill="${P.ink}"/><path d="M${x} ${y - 3} L${x + 3} ${y} L${x} ${y + 3} L${x - 3} ${y} Z" fill="${P.bg}"/>`,
+  happy:   (x, y, P) => `<path d="M${x - 6.5} ${y + 3} Q${x} ${y - 6} ${x + 6.5} ${y + 3}" ${st(P, 3)}/>`,
+  sleepy:  (x, y, P) => `<path d="M${x - 6.5} ${y} Q${x} ${y + 6} ${x + 6.5} ${y}" ${st(P, 2.6)}/><path d="M${x - 4} ${y + 3.5} l-1.5 2.5 M${x} ${y + 4.5} v3 M${x + 4} ${y + 3.5} l1.5 2.5" ${st(P, 1.4)}/>`,
+  frog:    (x, y, P) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.5" fill="${P.bg}"/><rect x="${x - 4.5}" y="${y - 1.4}" width="9" height="2.8" rx="1.4" fill="${P.ink}"/>`,
+  wink:    (x, y, P, s) => s < 0 ? EYES.ring(x, y, P) : `<path d="M${x - 7} ${y} H${x + 7}" ${st(P, 3)}/><path d="M${x - 5} ${y - 6} L${x + 6} ${y - 4}" ${st(P, 2)}/>`,
+};
+
+/* ---------- centre pieces: brows (top band), noses, mouths/beaks ---------- */
+const BROWS = {
+  chev: P => `<path d="M30 97 L40 101 L50 97 L60 101 L70 97" ${st(P, 2)}/>`,
+  bar:  P => `<rect x="31" y="95" width="38" height="4" rx="2" fill="${P.bg}"/>`,
+  dots: P => [34, 42, 50, 58, 66].map(x => `<circle cx="${x}" cy="97" r="1.6" fill="${P.ink}"/>`).join(''),
+  vee:  P => `<path d="M33 96 L50 102 L67 96" ${st(P, 2.6)}/>`,
+  hex:  P => [[38, 100], [50, 99], [62, 100]].map(([x, y]) => `<path d="M${[0,1,2,3,4,5].map(k => { const a = Math.PI / 3 * k + Math.PI / 6; return `${(x + 5.4 * Math.cos(a)).toFixed(1)} ${(y + 5.4 * Math.sin(a)).toFixed(1)}`; }).join(' L')} Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.5"/>`).join(''),
+  ridge:P => `<path d="M30 96 Q50 104 70 96" ${st(P, 2.2)}/><circle cx="50" cy="96.5" r="2" fill="${P.bg}"/>`,
+};
+const NOSES = {
+  oval:  P => `<rect x="45" y="111" width="10" height="6" rx="3" fill="${P.ink}"/>`,
+  tri:   P => `<path d="M45.5 112 L54.5 112 L50 118 Z" fill="${P.ink}"/>`,
+  snout: P => `<rect x="42" y="110" width="16" height="9" rx="4.5" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.5"/><circle cx="47" cy="114.5" r="1.4" fill="${P.ink}"/><circle cx="53" cy="114.5" r="1.4" fill="${P.ink}"/>`,
+  dots:  P => `<circle cx="47" cy="115" r="1.4" fill="${P.ink}"/><circle cx="53" cy="115" r="1.4" fill="${P.ink}"/>`,
+};
+const MOUTHS = {
+  beak:    P => `<path d="M45.5 116 L54.5 116 L50 126 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.5" stroke-linejoin="round"/>`,
+  hook:    P => `<path d="M44 115 L56 115 Q57 129 47 135 Q52 125 44 115 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.5" stroke-linejoin="round"/>`,
+  openBeak:P => `<path d="M44 115 L56 115 L50 124 Z M46 127 L54 127 L50 134 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.5" stroke-linejoin="round"/>`,
+  longBeak:P => `<path d="M43 113 L57 113 L50 138 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"/><path d="M50 113 V128" ${st(P, 1.3)}/>`,
+  wideBeak:P => `<path d="M37 114 L63 114 L50 135 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"/><path d="M40 119 H60" ${st(P, 1.3)}/>`,
+  splitBeak:P=> `<path d="M42 114 L58 114 L54 126 L50 122 L46 126 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"/><path d="M46 129 L54 129 L50 137 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.4" stroke-linejoin="round"/>`,
+  teeth:   P => `<rect x="31" y="121" width="38" height="13" rx="2" fill="${P.ink}"/>` + [0,1,2,3,4,5].map(i => { const x = 32 + i * 6; return `<path d="M${x} 121 h6 l-3 5 z M${x} 134 h6 l-3 -5 z" fill="${P.bg}"/>`; }).join(''),
+  fangs:   P => `<rect x="32" y="121" width="36" height="10" rx="5" fill="${P.ink}"/><path d="M37 121 h6 l-3 9 z M57 121 h6 l-3 9 z" fill="${P.bg}"/>`,
+  roar:    P => `<ellipse cx="50" cy="127" rx="11" ry="8.5" fill="${P.ink}"/><ellipse cx="50" cy="128.5" rx="6.5" ry="4.5" fill="${P.bg}"/><path d="M44 123 l2 3 l2 -3 M52 123 l2 3 l2 -3" fill="${P.ink}"/>`,
+  grin:    P => `<path d="M31 120 Q50 140 69 120 Z" fill="${P.ink}"/><path d="M35 123.5 Q50 129 65 123.5" ${st({ ink: P.bg }, 1.6)}/>`,
+  tongue:  P => `<path d="M35 122 Q50 132 65 122" ${st(P, 2.8)}/><path d="M45.5 126.8 Q50 137 54.5 126.8" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.5"/>`,
+  smile:   P => `<path d="M41 127 Q50 133 59 127" ${st(P, 2.6)}/>`,
+  zigzag:  P => `<path d="M34 127 l4 -4 l4 4 l4 -4 l4 4 l4 -4 l4 4 l4 -4 l4 4" ${st(P, 2.4)}/>`,
+  dimples: P => `<path d="M38 126 H62" ${st(P, 2.6)}/><circle cx="35" cy="126" r="1.8" fill="${P.ink}"/><circle cx="65" cy="126" r="1.8" fill="${P.ink}"/>`,
+  wide:    P => `<path d="M27 120 Q50 136 73 120" ${st(P, 3.2)}/>`,
+  flat:    P => `<path d="M30 125 H70" ${st(P, 3.2)}/><path d="M30 121 v8 M70 121 v8" ${st(P, 2)}/>`,
+  oh:      P => `<circle cx="50" cy="127" r="5.5" fill="${P.ink}"/><circle cx="50" cy="127" r="2.6" fill="${P.bg}"/>`,
+  froggy:  P => `<path d="M28 121 Q39 130 50 123 Q61 130 72 121" ${st(P, 3)}/>`,
+};
+const CHEST = {
+  chev: P => `<path d="M31 135 l4 -3 l4 3 l4 -3 l4 3 M53 135 l4 -3 l4 3 l4 -3 l4 3" ${st(P, 2)}/>`,
+  dots: P => `<circle cx="32" cy="128" r="1.6" fill="${P.ink}"/><circle cx="68" cy="128" r="1.6" fill="${P.ink}"/>`,
+};
+
+/* ---------- extra parts for the family rules ---------- */
+const big = (fn, k) => (x, y, P, s) => `<g transform="translate(${x} ${y}) scale(${k}) translate(${-x} ${-y})">${fn(x, y, P, s)}</g>`;
+Object.assign(EYES, {
+  // owl: ring-based
+  ringBrow:  (x, y, P, s) => EYES.ring(x, y, P) + `<path d="M${x + 8 * s} ${y - 11} L${x - 6 * s} ${y - 8}" ${st(P, 2.4)}/>`,
+  ringStar:  (x, y, P) => `<circle cx="${x}" cy="${y}" r="8" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5" fill="${P.bg}"/><path d="M${x} ${y - 3.6} L${x + 1} ${y - 1} L${x + 3.6} ${y} L${x + 1} ${y + 1} L${x} ${y + 3.6} L${x - 1} ${y + 1} L${x - 3.6} ${y} L${x - 1} ${y - 1} Z" fill="${P.ink}"/>`,
+  ringLook:  (x, y, P) => `<circle cx="${x}" cy="${y}" r="8" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5" fill="${P.bg}"/><circle cx="${x + 2.4}" cy="${y + 1.6}" r="2.4" fill="${P.ink}"/>`,
+  // bear: small eyes (brows are separate)
+  dot:       (x, y, P) => `<circle cx="${x}" cy="${y + 1}" r="3.2" fill="${P.ink}"/><circle cx="${x + .9}" cy="${y}" r="1" fill="${P.bg}"/>`,
+  beady:     (x, y, P) => `<ellipse cx="${x}" cy="${y + 1}" rx="4.5" ry="3.4" fill="${P.ink}"/><circle cx="${x}" cy="${y + 1}" r="1.5" fill="${P.bg}"/>`,
+  slitSm:    (x, y, P) => `<ellipse cx="${x}" cy="${y + 1}" rx="4.6" ry="5" fill="${P.ink}"/><ellipse cx="${x}" cy="${y + 1}" rx="1.1" ry="3.6" fill="${P.bg}"/>`,
+  squint:    (x, y, P, s) => `<path d="M${x - 5} ${y + 1} L${x + 5} ${y + 1}" ${st(P, 3)}/>`,
+  // raven: big eyes
+  almondBig: big((x, y, P) => EYES.almond(x, y, P), 1.25),
+  ringBig:   big((x, y, P) => EYES.ring(x, y, P), 1.12),
+  diamondBig:big((x, y, P) => EYES.diamond(x, y, P), 1.15),
+  glare:     (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="9" fill="${P.ink}"/><circle cx="${x - s}" cy="${y + 1}" r="3" fill="${P.bg}"/><path d="M${x - 10} ${y - 9.5} L${x + 10} ${y - 9.5} L${x + 10} ${y - 4 + 3 * s} L${x - 10} ${y - 4 - 3 * s} Z" fill="${P.body}"/>`,
+  moon:      (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="9" fill="${P.ink}"/><circle cx="${x - 2.5 * s}" cy="${y - 1}" r="5.5" fill="${P.bg}"/>`,
+  // turtle: calm
+  calmDot:   (x, y, P) => `<circle cx="${x}" cy="${y + 1}" r="3" fill="${P.ink}"/><path d="M${x - 5} ${y - 2.5} Q${x} ${y - 5} ${x + 5} ${y - 2.5}" ${st(P, 1.8)}/>`,
+  closed:    (x, y, P) => `<path d="M${x - 6.5} ${y} Q${x} ${y + 5} ${x + 6.5} ${y}" ${st(P, 2.6)}/>`,
+  content:   (x, y, P) => `<circle cx="${x}" cy="${y}" r="5.5" fill="${P.ink}"/><rect x="${x - 6.5}" y="${y - 6.5}" width="13" height="6" fill="${P.body}"/><path d="M${x - 6.5} ${y - .5} H${x + 6.5}" ${st(P, 2)}/>`,
+  // frog: big round eyes with different pupils
+  frogDot:   (x, y, P) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.5" fill="${P.bg}"/><circle cx="${x}" cy="${y}" r="2.6" fill="${P.ink}"/>`,
+  frogSide:  (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.5" fill="${P.bg}"/><circle cx="${x - 2.4 * s}" cy="${y + .5}" r="2.6" fill="${P.ink}"/>`,
+  frogLid:   (x, y, P) => EYES.frog(x, y, P) + `<path d="M${x - 9} ${y - 9} H${x + 9} V${y - 1} A9 9 0 0 0 ${x - 9} ${y - 1} Z" fill="${P.body}"/><path d="M${x - 8.5} ${y - 1} H${x + 8.5}" ${st(P, 2.2)}/>`,
+  frogShine: (x, y, P) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.5" fill="${P.bg}"/><circle cx="${x}" cy="${y + .5}" r="3.4" fill="${P.ink}"/><circle cx="${x + 1.3}" cy="${y - .8}" r="1.1" fill="${P.bg}"/>`,
+});
+/* per-eye brows (bear) */
+const BROW = {
+  slant: (x, y, P, s) => `<path d="M${x + 7 * s} ${y - 8} L${x - 6 * s} ${y - 3}" ${st(P, 3)}/>`,
+  block: (x, y, P, s) => `<path d="M${x - 7} ${y - 9} L${x + 7} ${y - 9} L${x + 7} ${y - 5 + 2 * s} L${x - 7} ${y - 5 - 2 * s} Z" fill="${P.ink}"/>`,
+  arch:  (x, y, P) => `<path d="M${x - 7} ${y - 4} Q${x} ${y - 11} ${x + 7} ${y - 4}" ${st(P, 2.8)}/>`,
+  bushy: (x, y, P, s) => `<path d="M${x - 7} ${y - 4} l2.3 -4 l2.3 3 l2.3 -4 l2.3 3 l2.3 -4 l2.3 3" ${st(P, 2.2)}/>`,
+  uni:   () => '',
+};
+Object.assign(NOSES, {
+  button: P => `<ellipse cx="50" cy="114" rx="5.5" ry="4" fill="${P.ink}"/><ellipse cx="48.5" cy="112.8" rx="1.6" ry="1" fill="${P.bg}"/>`,
+  ball:   P => `<circle cx="50" cy="114" r="4.6" fill="${P.ink}"/>`,
+  wide:   P => `<rect x="43" y="110.5" width="14" height="7.5" rx="3.75" fill="${P.ink}"/>`,
+  frog:   P => `<circle cx="47" cy="116" r="1.4" fill="${P.ink}"/><circle cx="53" cy="116" r="1.4" fill="${P.ink}"/>`,
+});
+Object.assign(BROWS, {
+  uni:   P => `<path d="M31 100 Q40 96 50 101 Q60 96 69 100" ${st(P, 3.2)}/>`,
+  hexRow:P => [[33, 99], [44, 98], [56, 98], [67, 99]].map(([x, y]) => `<path d="M${[0,1,2,3,4,5].map(k => { const a = Math.PI / 3 * k + Math.PI / 6; return `${(x + 4.6 * Math.cos(a)).toFixed(1)} ${(y + 4.6 * Math.sin(a)).toFixed(1)}`; }).join(' L')} Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.4"/>`).join(''),
+  crest: P => `<path d="M44 92 L50 99 L56 92" fill="${P.ink}"/>`,
+});
+Object.assign(MOUTHS, {
+  zigTeeth: P => `<path d="M32 121 H68 V131 H32 Z" fill="${P.ink}"/><path d="M33 121 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5" fill="${P.bg}"/>`,
+  tusks:    P => `<path d="M34 124 Q50 134 66 124" ${st(P, 2.8)}/><path d="M38 126.5 l2 -9 l3 8.8 Z M62 126.5 l-2 -9 l-3 8.8 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.3" stroke-linejoin="round"/>`,
+  toothGrin:P => `<path d="M31 121 Q50 140 69 121 Z" fill="${P.ink}"/><path d="M34 122 l3 4 l3 -3.6 l3 4.6 l3 -4.4 l4 4.8 l4 -4.8 l3 4.4 l3 -4.6 l3 3.6 l3 -4" fill="${P.bg}"/>`,
+  snarl:    P => `<path d="M33 128 Q42 120 50 126 Q58 120 67 128 Q50 136 33 128 Z" fill="${P.ink}"/><path d="M39 125.4 l2 4 l2 -4.6 M57 124.8 l2 4.6 l2 -4" fill="${P.bg}"/>`,
+  calm:     P => `<path d="M40 126 Q50 133 60 126" ${st(P, 2.6)}/>`,
+  calmBlush:P => MOUTHS.calm(P) + `<ellipse cx="31" cy="121" rx="3.6" ry="2.2" fill="${P.bg}"/><ellipse cx="69" cy="121" rx="3.6" ry="2.2" fill="${P.bg}"/>`,
+  calmBeak: P => `<path d="M42 124 Q50 132 58 124 Q50 127 42 124 Z" fill="${P.ink}"/><path d="M42 124 Q50 132 58 124" ${st(P, 2.2)}/>`,
+  calmWide: P => `<path d="M35 124 Q50 134 65 124" ${st(P, 2.6)}/><path d="M33 122 l3 2.6 M67 122 l-3 2.6" ${st(P, 2)}/>`,
+  calmTiny: P => `<path d="M45 127 Q47.5 130 50 127 Q52.5 130 55 127" ${st(P, 2.2)}/>`,
+  frogWide: P => `<path d="M27 121 Q50 136 73 121" ${st(P, 3.2)}/><path d="M25 118.5 L28.5 121.8 M75 118.5 L71.5 121.8" ${st(P, 2.4)}/>`,
+  frogFlat: P => `<path d="M27 125 Q50 129 73 125" ${st(P, 3.2)}/>`,
+  frogWave: P => `<path d="M27 121 Q38.5 131 50 124 Q61.5 131 73 121" ${st(P, 3.2)}/>`,
+  frogOpen: P => `<path d="M28 121 Q50 140 72 121 Z" fill="${P.ink}"/><path d="M42 128.5 Q50 138 58 128.5 Q50 131 42 128.5 Z" fill="${P.bg}"/>`,
+  frogFrown:P => `<path d="M27 129 Q50 117 73 129" ${st(P, 3.2)}/>`,
+});
+
+
+/* ---- round 3 parts ---- */
+Object.assign(EYES, {
+  // bear: big eyes, big pupils
+  bBig:    (x, y, P) => `<circle cx="${x}" cy="${y}" r="7" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="4.8" fill="${P.bg}"/><circle cx="${x}" cy="${y + .4}" r="3" fill="${P.ink}"/>`,
+  bDown:   (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="7" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="4.8" fill="${P.bg}"/><circle cx="${x - 1.2 * s}" cy="${y + 1.4}" r="3" fill="${P.ink}"/>`,
+  bGlare:  (x, y, P, s) => EYES.bBig(x, y, P) + `<path d="M${x - 8} ${y - 8} L${x + 8} ${y - 8} L${x + 8} ${y - 2 + 3 * s} L${x - 8} ${y - 2 - 3 * s} Z" fill="${P.body}"/>`,
+  bWild:   (x, y, P) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.6" fill="${P.bg}"/><circle cx="${x}" cy="${y}" r="2.2" fill="${P.ink}"/>`,
+  bSquare: (x, y, P) => `<rect x="${x - 7}" y="${y - 6}" width="14" height="12" rx="2.5" fill="${P.ink}"/><rect x="${x - 4.6}" y="${y - 3.6}" width="9.2" height="7.2" rx="1.5" fill="${P.bg}"/><circle cx="${x}" cy="${y + .3}" r="2.8" fill="${P.ink}"/>`,
+  // turtle: heavy-lidded old eyes
+  tLid:    (x, y, P) => `<circle cx="${x}" cy="${y}" r="6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y + 1.8}" r="2.6" fill="${P.ink}"/><rect x="${x - 7.5}" y="${y - 7.5}" width="15" height="7" fill="${P.body}"/><path d="M${x - 7} ${y - .5} H${x + 7}" ${st(P, 2.4)}/>`,
+  tDroop:  (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y + 2}" r="2.6" fill="${P.ink}"/><path d="M${x - 7.5} ${y - 7.5} H${x + 7.5} V${y + 1 + 2 * s} L${x - 7.5} ${y + 1 - 2 * s} Z" fill="${P.body}"/><path d="M${x - 7} ${y + 1 - 2 * s} L${x + 7} ${y + 1 + 2 * s}" ${st(P, 2.4)}/>`,
+  tDozy:   (x, y, P) => `<circle cx="${x}" cy="${y}" r="6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y + 3.4}" r="2" fill="${P.ink}"/><rect x="${x - 7.5}" y="${y - 7.5}" width="15" height="10" fill="${P.body}"/><path d="M${x - 7} ${y + 2.5} H${x + 7}" ${st(P, 2.4)}/>`,
+  tSmile:  (x, y, P) => `<circle cx="${x}" cy="${y}" r="6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y + .6}" r="2.6" fill="${P.ink}"/><rect x="${x - 7.5}" y="${y - 7.5}" width="15" height="5.5" fill="${P.body}"/><path d="M${x - 7} ${y - 2} H${x + 7}" ${st(P, 2.4)}/>`,
+  tWink:   (x, y, P, s) => s < 0 ? EYES.tLid(x, y, P) : `<path d="M${x - 6.5} ${y + 1} Q${x} ${y + 5} ${x + 6.5} ${y + 1}" ${st(P, 2.6)}/>`,
+  // frog fixes
+  frogHalf:(x, y, P) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.5" fill="${P.bg}"/><rect x="${x - 4.5}" y="${y + .6}" width="9" height="2.6" rx="1.3" fill="${P.ink}"/><rect x="${x - 9.5}" y="${y - 9.5}" width="19" height="9.5" fill="${P.body}"/><path d="M${x - 9} ${y} H${x + 9}" ${st(P, 2.6)}/>`,
+  frogUp:  (x, y, P) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${P.ink}"/><circle cx="${x}" cy="${y}" r="5.5" fill="${P.bg}"/><circle cx="${x}" cy="${y - 1.6}" r="3.2" fill="${P.ink}"/>`,
+});
+/* bear brows sit higher because bear eyes sit at y 106 */
+Object.assign(BROW, {
+  bSlant: (x, y, P, s) => `<path d="M${x + 8 * s} ${y - 11} L${x - 6 * s} ${y - 7}" ${st(P, 3)}/>`,
+  bBlock: (x, y, P, s) => `<path d="M${x - 7.5} ${y - 12} L${x + 7.5} ${y - 12} L${x + 7.5} ${y - 8.5 + 2 * s} L${x - 7.5} ${y - 8.5 - 2 * s} Z" fill="${P.ink}"/>`,
+  bArch:  (x, y, P) => `<path d="M${x - 7} ${y - 8} Q${x} ${y - 14} ${x + 7} ${y - 8}" ${st(P, 2.8)}/>`,
+  bBushy: (x, y, P) => `<path d="M${x - 7.5} ${y - 8} l2.5 -3.6 l2.5 2.6 l2.5 -3.6 l2.5 2.6 l2.5 -3.6 l2.5 2.6" ${st(P, 2.2)}/>`,
+  bWorry: (x, y, P, s) => `<path d="M${x - 7 * s} ${y - 9} L${x + 6 * s} ${y - 12}" ${st(P, 3)}/>`,
+});
+Object.assign(NOSES, {
+  pig:     P => `<rect x="42" y="113" width="16" height="9" rx="4.5" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><ellipse cx="47" cy="117.5" rx="1.4" ry="2" fill="${P.ink}"/><ellipse cx="53" cy="117.5" rx="1.4" ry="2" fill="${P.ink}"/>`,
+  pigRound:P => `<ellipse cx="50" cy="117.5" rx="7" ry="5.2" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="47.5" cy="117.5" r="1.4" fill="${P.ink}"/><circle cx="52.5" cy="117.5" r="1.4" fill="${P.ink}"/>`,
+  pigWide: P => `<rect x="40" y="113.5" width="20" height="8" rx="4" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><ellipse cx="45.5" cy="117.5" rx="1.6" ry="1.6" fill="${P.ink}"/><ellipse cx="54.5" cy="117.5" rx="1.6" ry="1.6" fill="${P.ink}"/>`,
+  pigDark: P => `<rect x="42" y="113" width="16" height="9" rx="4.5" fill="${P.ink}"/><ellipse cx="47" cy="117.5" rx="1.5" ry="2" fill="${P.body}"/><ellipse cx="53" cy="117.5" rx="1.5" ry="2" fill="${P.body}"/>`,
+});
+Object.assign(MOUTHS, {
+  bTeeth: P => `<rect x="32" y="124.5" width="36" height="11" rx="2" fill="${P.ink}"/>` + [0,1,2,3,4,5].map(i => { const x = 32 + i * 6; return `<path d="M${x} 124.5 h6 l-3 4.5 z M${x} 135.5 h6 l-3 -4.5 z" fill="${P.bg}"/>`; }).join(''),
+  bFangs: P => `<rect x="33" y="125" width="34" height="9" rx="4.5" fill="${P.ink}"/><path d="M37.5 125 h5 l-2.5 8 z M57.5 125 h5 l-2.5 8 z" fill="${P.bg}"/>`,
+  bZig:   P => `<rect x="32" y="125" width="36" height="10" rx="2" fill="${P.ink}"/><path d="M33 125 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5 l3.5 5 l3.5 -5" fill="${P.bg}"/>`,
+  bGrin:  P => `<path d="M31 124 Q50 141 69 124 Z" fill="${P.ink}"/><path d="M34 125 l3 3.6 l3 -3.4 l3 4.2 l3 -4 l4 4.4 l4 -4.4 l3 4 l3 -4.2 l3 3.4 l3 -3.6" fill="${P.bg}"/>`,
+  bTusks: P => `<path d="M34 128 Q50 136 66 128" ${st(P, 2.8)}/><path d="M38 130 l2 -8.4 l3 8.2 Z M62 130 l-2 -8.4 l-3 8.2 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.3" stroke-linejoin="round"/>`,
+  dagger: P => `<path d="M44.5 113 L55.5 113 L50 139 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"/><path d="M44.5 119 L55.5 119" ${st(P, 1.4)}/><path d="M48 115.5 h1.4 M50.6 115.5 h1.4" ${st(P, 1.2)}/>`,
+  /* turtle beaks: a beaked smile with a little hook in the middle */
+  tBeak:   P => `<path d="M34 122 Q42 129 48 126 L50 130 L52 126 Q58 129 66 122" ${st(P, 2.6)}/>`,
+  tBeakW:  P => `<path d="M31 121 Q41 131 48 127 L50 131.5 L52 127 Q59 131 69 121" ${st(P, 2.6)}/>`,
+  tBeakS:  P => `<path d="M39 124 Q45 128 48.5 126.5 L50 129.5 L51.5 126.5 Q55 128 61 124" ${st(P, 2.4)}/>`,
+  tBeakF:  P => `<path d="M34 123 Q42 129 48 126 L50 130 L52 126 Q58 129 66 123 Q50 136 34 123 Z" fill="${P.ink}"/>`,
+  tBeakO:  P => `<path d="M36 123 Q43 128 48 126 L50 129.5 L52 126 Q57 128 64 123" ${st(P, 2.4)}/>`,
+  frogGulp:P => `<path d="M30 121 Q50 140 70 121 Z" fill="${P.ink}"/><ellipse cx="50" cy="127" rx="6" ry="2.4" fill="${P.bg}"/>`,
+});
+Object.assign(CHEST, {
+  /* turtle: neck wrinkles under the chin */
+  wr2: P => `<path d="M39 134 Q50 137.5 61 134" ${st(P, 1.6)}/><path d="M43 137 Q50 139 57 137" ${st(P, 1.4)}/>`,
+  wr1: P => `<path d="M40 135 Q50 138.5 60 135" ${st(P, 1.6)}/>`,
+});
+Object.assign(BROWS, {
+  /* turtle: forehead wrinkles */
+  fw2: P => `<path d="M38 96.5 Q50 93.5 62 96.5 M41 100 Q50 97.5 59 100" ${st(P, 1.5)}/>`,
+  fw1: P => `<path d="M39 98 Q50 95 61 98" ${st(P, 1.5)}/>`,
+  fw3: P => `<path d="M36 96 Q43 94 48 96 M52 96 Q57 94 64 96 M42 99.5 Q50 97.5 58 99.5" ${st(P, 1.5)}/>`,
+});
+
+/* ---------- 5 faces per colour, each inside its family rule ---------- */
+const RULES = {
+  repeat:  'Big ringed owl eyes, a small pointed beak, feather chevrons on the chest. Below: horn tufts combined with facial discs.',
+  shatter: 'Eyebrows, big eyes with big pupils, a pig snout and sharp teeth on every face. Below: five ways to add a light accent.',
+  discard: 'Big eyes and a pointed beak on every face. Below: two combinations, with the three single options they came from.',
+  return:  '',
+  cancel:  'Round frog eyes, two little nostrils and a wide mouth. Below: six experiments with a light accent, building on the cheeks idea.',
+};
+const FACES = {
+  repeat: [
+    { n: 'Watcher',   eyes: 'ring',     parts: ['brows:chev', 'mouth:beak', 'chest:chev'] },
+    { n: 'Hypnotist', eyes: 'target',   parts: ['mouth:beak', 'chest:chev'] },
+    { n: 'Sentinel',  eyes: 'ringBrow', parts: ['mouth:beak', 'chest:chev'] },
+    { n: 'Dreamer',   eyes: 'lidded',   parts: ['brows:dots', 'mouth:beak', 'chest:chev'] },
+    { n: 'Stargazer', eyes: 'ringStar', parts: ['brows:vee', 'mouth:beak', 'chest:chev'] },
+  ],
+  shatter: [
+    { n: 'Brute',   ey: 106, eyes: 'bBig',    brow: 'bSlant', parts: ['noses:pig', 'mouth:bTeeth'] },
+    { n: 'Bull',    ey: 106, eyes: 'bGlare',  brow: 'bBlock', parts: ['noses:pigWide', 'mouth:bFangs'] },
+    { n: 'Roarer',  ey: 106, eyes: 'bWild',   brow: 'bBushy', parts: ['noses:pigRound', 'mouth:bZig'] },
+    { n: 'Grinner', ey: 106, eyes: 'bDown',   brow: 'bArch',  parts: ['noses:pig', 'mouth:bGrin'] },
+    { n: 'Grump',   ey: 106, eyes: 'bSquare', brow: 'bWorry', parts: ['noses:pigDark', 'mouth:bTusks'] },
+  ],
+  discard: [
+    { n: 'Thief',     eyes: 'almondBig',  parts: ['mouth:longBeak'] },
+    { n: 'Schemer',   eyes: 'glare',      parts: ['mouth:hook'] },
+    { n: 'Collector', eyes: 'diamondBig', parts: ['mouth:wideBeak'] },
+    { n: 'Caller',    eyes: 'ringBig',    parts: ['mouth:dagger'] },
+    { n: 'Seer',      eyes: 'moon',       parts: ['brows:crest', 'mouth:longBeak'] },
+  ],
+  return: [
+    { n: 'Elder',    ey: 110, eyes: 'tLid',   parts: ['brows:fw2', 'mouth:tBeak',  'chest:wr2'] },
+    { n: 'Napper',   ey: 110, eyes: 'tDozy',  parts: ['brows:fw1', 'mouth:tBeakS', 'chest:wr2'] },
+    { n: 'Sage',     ey: 110, eyes: 'tDroop', parts: ['brows:fw3', 'mouth:tBeakW', 'chest:wr1'] },
+    { n: 'Wanderer', ey: 110, eyes: 'tSmile', parts: ['brows:fw2', 'mouth:tBeakF', 'chest:wr1'] },
+    { n: 'Keeper',   ey: 110, eyes: 'tWink',  parts: ['brows:fw1', 'mouth:tBeakO', 'chest:wr2'] },
+  ],
+  cancel: [
+    { n: 'Croaker', eyes: 'frog',      parts: ['noses:frog', 'mouth:frogWide'] },
+    { n: 'Sleeper', eyes: 'frogHalf',   parts: ['noses:frog', 'mouth:frogFlat'] },
+    { n: 'Gulper',  eyes: 'frogUp',    parts: ['noses:frog', 'mouth:frogGulp'] },
+    { n: 'Skeptic', eyes: 'frogSide',  parts: ['noses:frog', 'mouth:frogWave'] },
+    { n: 'Grouch',  eyes: 'frogDot',   parts: ['noses:frog', 'mouth:frogFrown'] },
+  ],
+};
+
+/* ---------- turtle directions ---------- */
+const hexAt = (x, y, r) => 'M' + [0,1,2,3,4,5].map(k => { const a = Math.PI / 3 * k + Math.PI / 6; return `${(x + r * Math.cos(a)).toFixed(1)} ${(y + r * Math.sin(a)).toFixed(1)}`; }).join(' L') + ' Z';
+Object.assign(BROWS, {
+  /* A: a shell cap over the head, with plate seams */
+  cap:    P => `<path d="M24 92 H76 V100 Q50 94 24 100 Z" fill="${P.bg}"/><path d="M24 100 Q50 94 76 100" ${st(P, 1.8)}/><path d="M37 92 V97 M50 92 V95.5 M63 92 V97" ${st(P, 1.6)}/>`,
+  /* B: freckle spots on brow and cheeks */
+  spots:  P => [[33,97,2.2],[41,95.5,1.5],[57,95.5,1.8],[66,97.5,2.3],[49,98,1.2],[29,120,1.7],[71,120,1.7],[32,125,1.2],[68,125,1.2]].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${P.bg}"/>`).join(''),
+  /* C: small scales in two rows */
+  scales: P => [30, 36.5, 43, 49.5, 56, 62.5].map(x => `<path d="M${x + 1} 95 a3.25 3.25 0 0 0 6.5 0" ${st(P, 1.4)}/>`).join('') + [33.25, 39.75, 46.25, 52.75, 59.25].map(x => `<path d="M${x + 1} 99 a3.25 3.25 0 0 0 6.5 0" ${st(P, 1.4)}/>`).join(''),
+  /* D: big head plates + cheek scale lines (sea turtle) */
+  plates: P => `<path d="M43 93.5 H57 L55 100 H45 Z M30 95 H41 L43 100 H32 Z M70 95 H59 L57 100 H68 Z" fill="none" stroke="${P.ink}" stroke-width="1.4" stroke-linejoin="round"/>` +
+              `<path d="M27 116 L33 119 M26.5 121 L32 123.5 M73 116 L67 119 M73.5 121 L68 123.5" ${st(P, 1.6)}/>`,
+});
+Object.assign(EYES, {
+  tRaise: (x, y, P) => `<circle cx="${x}" cy="${y}" r="6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y + .6}" r="2.6" fill="${P.ink}"/><rect x="${x - 7.5}" y="${y - 7.5}" width="15" height="5.5" fill="${P.body}"/><path d="M${x - 7} ${y - 2} H${x + 7}" ${st(P, 2.4)}/>`,
+  /* sea turtle: big glossy eyes */
+  sBig:   (x, y, P) => `<circle cx="${x}" cy="${y}" r="7" fill="${P.ink}"/><circle cx="${x + 2.2}" cy="${y - 2.2}" r="2" fill="${P.body}"/>`,
+  sLid:   (x, y, P) => `<circle cx="${x}" cy="${y}" r="7" fill="${P.ink}"/><circle cx="${x + 2}" cy="${y + .6}" r="1.8" fill="${P.body}"/><rect x="${x - 8}" y="${y - 8}" width="16" height="6" fill="${P.body}"/><path d="M${x - 7.5} ${y - 2} H${x + 7.5}" ${st(P, 2.2)}/>`,
+  sDown:  (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="7" fill="${P.ink}"/><circle cx="${x - 2 * s}" cy="${y + 2}" r="1.8" fill="${P.body}"/>`,
+  sClosed:(x, y, P) => `<path d="M${x - 7} ${y} Q${x} ${y + 6} ${x + 7} ${y}" ${st(P, 2.8)}/>`,
+  sWink:  (x, y, P, s) => s < 0 ? EYES.sBig(x, y, P) : EYES.sClosed(x, y, P),
+});
+Object.assign(MOUTHS, {
+  /* A: straight beak line with a small notch in the middle */
+  nFlat:  P => `<path d="M37 125 H47 L50 128.5 L53 125 H63" ${st(P, 2.4)}/>`,
+  nUp:    P => `<path d="M36 123 Q41 126 47 125.5 L50 129 L53 125.5 Q59 126 64 123" ${st(P, 2.4)}/>`,
+  nSmall: P => `<path d="M41 125.5 H47.5 L50 128.5 L52.5 125.5 H59" ${st(P, 2.4)}/>`,
+  nWide:  P => `<path d="M32 124 H47 L50 127.5 L53 124 H68" ${st(P, 2.4)}/><path d="M32 124 v-2.6 M68 124 v-2.6" ${st(P, 2)}/>`,
+  nChin:  P => `<path d="M38 124.5 H47 L50 128 L53 124.5 H62" ${st(P, 2.4)}/><path d="M44 133 Q50 135.5 56 133" ${st(P, 1.6)}/>`,
+  /* B: the lower face is a pale beak plate */
+  pRound: P => `<path d="M38 121 Q50 117 62 121 Q61 133 50 135 Q39 133 38 121 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><path d="M40 126.5 Q50 129.5 60 126.5" ${st(P, 1.6)}/>`,
+  pPoint: P => `<path d="M38 120.5 Q50 116.5 62 120.5 L50 136 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"/><path d="M41.5 125 Q50 128 58.5 125" ${st(P, 1.6)}/>`,
+  pWide:  P => `<path d="M33 121 Q50 116 67 121 Q65 132 50 134 Q35 132 33 121 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><path d="M35 125.5 Q50 129 65 125.5" ${st(P, 1.6)}/>`,
+  pSmall: P => `<path d="M42 122 Q50 119 58 122 Q57.5 131 50 133 Q42.5 131 42 122 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><path d="M43.5 126.5 Q50 128.5 56.5 126.5" ${st(P, 1.5)}/>`,
+  pHook:  P => `<path d="M38 120.5 Q50 116.5 62 120.5 Q60 130 52 132 L50 136 L48 132 Q40 130 38 120.5 Z" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"/><path d="M41 125.5 Q50 128.5 59 125.5" ${st(P, 1.6)}/>`,
+  /* C: plain calm lines */
+  lCalm:  P => `<path d="M40 126 Q50 129.5 60 126" ${st(P, 2.4)}/>`,
+  lFlat:  P => `<path d="M40 127 H60" ${st(P, 2.4)}/><path d="M40 127 l-2 -2 M60 127 l2 -2" ${st(P, 2)}/>`,
+  lSmall: P => `<path d="M44 126.5 Q50 129.5 56 126.5" ${st(P, 2.4)}/>`,
+  lWide:  P => `<path d="M35 125 Q50 130 65 125" ${st(P, 2.4)}/>`,
+  lOh:    P => `<path d="M42 126 Q50 128.5 58 126" ${st(P, 2.4)}/><circle cx="50" cy="133" r="1.6" fill="${P.ink}"/>`,
+  /* D: tiny beak tip */
+  sTip:   P => `<path d="M44 124 Q50 127 56 124 L50 130 Z" fill="${P.ink}"/>`,
+  sTipS:  P => `<path d="M38 124 Q44 126.5 47 125 L50 129.5 L53 125 Q56 126.5 62 124" ${st(P, 2.2)}/>`,
+});
+const T = (n, eyes, brow, mouth) => ({ n, ey: 110, eyes, parts: [`brows:${brow}`, `mouth:${mouth}`] });
+const TURTLES = [
+  { key: 'A', title: 'Shell Cap', note: 'A pale shell rim sits across the top of the head, like a helmet. The mouth is a straight beak line with a small notch.',
+    faces: [T('Elder','tLid','cap','nFlat'), T('Napper','tDozy','cap','nSmall'), T('Sage','tDroop','cap','nChin'), T('Wanderer','tRaise','cap','nUp'), T('Keeper','tWink','cap','nWide')] },
+  { key: 'B', title: 'Beak Plate', note: 'The lower face is a pale beak plate with the mouth line across it. Freckle spots on the brow and cheeks.',
+    faces: [T('Elder','tLid','spots','pRound'), T('Napper','tDozy','spots','pSmall'), T('Sage','tDroop','spots','pHook'), T('Wanderer','tRaise','spots','pWide'), T('Keeper','tWink','spots','pPoint')] },
+  { key: 'C', title: 'Scaled Tortoise', note: 'Two rows of small scales on the forehead and a plain, calm mouth. The quietest option.',
+    faces: [T('Elder','tLid','scales','lCalm'), T('Napper','tDozy','scales','lSmall'), T('Sage','tDroop','scales','lFlat'), T('Wanderer','tRaise','scales','lWide'), T('Keeper','tWink','scales','lOh')] },
+  { key: 'D', title: 'Sea Turtle', note: 'Big glossy dark eyes, large head plates and scale lines on the cheeks. A tiny beak tip for a mouth. Gentler and cuter.',
+    faces: [T('Drifter','sBig','plates','sTip'), T('Dozer','sLid','plates','sTipS'), T('Shy','sDown','plates','sTip'), T('Dreamer','sClosed','plates','sTipS'), T('Winker','sWink','plates','sTip')] },
+];
+FACES.return = TURTLES[0].faces;
+
+/* ---------- round 5: freckled turtles, mouth options ---------- */
+Object.assign(BROWS, {
+  spots2: P => [[33,97,2.2],[41,95.5,1.5],[57,95.5,1.8],[66,97.5,2.3],[49,98,1.2],[29,117,1.7],[71,117,1.7],[31.5,121,1.1],[68.5,121,1.1]].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${P.bg}"/>`).join(''),
+});
+Object.assign(MOUTHS, {
+  /* 1: long jaw line running almost edge to edge */
+  jFlat:  P => `<path d="M28 126 Q39 128.5 50 127.5 Q61 128.5 72 126" ${st(P, 2.4)}/>`,
+  jSmile: P => `<path d="M28 124.5 Q50 132 72 124.5" ${st(P, 2.4)}/>`,
+  jDip:   P => `<path d="M28 125 Q40 128 47 127 Q50 129 53 127 Q60 128 72 125" ${st(P, 2.4)}/>`,
+  jTick:  P => `<path d="M30 126.5 Q50 130 70 126.5" ${st(P, 2.4)}/><path d="M30 126.5 l-2.4 -2.6 M70 126.5 l2.4 -2.6" ${st(P, 2.2)}/>`,
+  jWave:  P => `<path d="M28 126 Q34 124 39 126.5 Q50 130 61 126.5 Q66 124 72 126" ${st(P, 2.4)}/>`,
+  /* 2: mouth line with a pale throat below */
+  cMid:   P => `<path d="M37 129.5 Q50 135 63 129.5 L61 140 H39 Z" fill="${P.bg}"/><path d="M31 125.5 Q50 132 69 125.5" ${st(P, 2.4)}/>`,
+  cFlat:  P => `<path d="M37 130 Q50 133 63 130 L61 140 H39 Z" fill="${P.bg}"/><path d="M31 127 Q50 129 69 127" ${st(P, 2.4)}/>`,
+  cWide:  P => `<path d="M33 129.5 Q50 136 67 129.5 L64 140 H36 Z" fill="${P.bg}"/><path d="M28 125 Q50 133 72 125" ${st(P, 2.4)}/>`,
+  cSmall: P => `<path d="M40 130 Q50 134 60 130 L58.5 140 H41.5 Z" fill="${P.bg}"/><path d="M35 126.5 Q50 131.5 65 126.5" ${st(P, 2.4)}/>`,
+  cLines: P => `<path d="M37 129.5 Q50 135 63 129.5 L61 140 H39 Z" fill="${P.bg}"/><path d="M42 135.5 H58 M44 138.5 H56" stroke="${P.body}" stroke-width="1.2"/><path d="M31 125.5 Q50 132 69 125.5" ${st(P, 2.4)}/>`,
+  /* 3: wide smile with cheek creases */
+  sCrease:P => `<path d="M36 124.5 Q50 133 64 124.5" ${st(P, 2.4)}/><path d="M34 121.5 Q32.5 124.5 35 127.5 M66 121.5 Q67.5 124.5 65 127.5" ${st(P, 1.8)}/>`,
+  sCreaseS:P=> `<path d="M40 125 Q50 131 60 125" ${st(P, 2.4)}/><path d="M38 122.5 Q36.5 125 39 127.5 M62 122.5 Q63.5 125 61 127.5" ${st(P, 1.8)}/>`,
+  sCreaseW:P=> `<path d="M33 124 Q50 134 67 124" ${st(P, 2.4)}/><path d="M31 121 Q29.5 124 32 127 M69 121 Q70.5 124 68 127" ${st(P, 1.8)}/><path d="M45 134 Q50 135.5 55 134" ${st(P, 1.4)}/>`,
+  sCreaseF:P=> `<path d="M36 125.5 Q50 130 64 125.5" ${st(P, 2.4)}/><path d="M34 122.5 Q32.5 125.5 35 128.5 M66 122.5 Q67.5 125.5 65 128.5" ${st(P, 1.8)}/>`,
+  sCreaseO:P=> `<path d="M36 124.5 Q50 133 64 124.5 Q50 128 36 124.5 Z" fill="${P.ink}"/><path d="M34 121.5 Q32.5 124.5 35 127.5 M66 121.5 Q67.5 124.5 65 127.5" ${st(P, 1.8)}/>`,
+  /* 4: old grump: gentle downturn with jowls */
+  gDown:  P => `<path d="M33 128 Q50 122 67 128" ${st(P, 2.4)}/><path d="M32 131 l2.4 3 M68 131 l-2.4 3" ${st(P, 1.8)}/>`,
+  gFlat:  P => `<path d="M33 127 Q42 125 50 126.5 Q58 125 67 127" ${st(P, 2.4)}/><path d="M32 130 l2.4 3 M68 130 l-2.4 3" ${st(P, 1.8)}/>`,
+  gWide:  P => `<path d="M29 128 Q50 121 71 128" ${st(P, 2.4)}/><path d="M29 131 l2.4 3.4 M71 131 l-2.4 3.4" ${st(P, 1.8)}/>`,
+  gSmall: P => `<path d="M39 128 Q50 123.5 61 128" ${st(P, 2.4)}/><path d="M38 131 l2 2.6 M62 131 l-2 2.6" ${st(P, 1.8)}/>`,
+  gPout:  P => `<path d="M33 128 Q50 122 67 128" ${st(P, 2.4)}/><path d="M45 131 Q50 133 55 131" ${st(P, 1.6)}/><path d="M32 131 l2.4 3 M68 131 l-2.4 3" ${st(P, 1.8)}/>`,
+});
+const TF = (n, eyes, mouth) => ({ n, ey: 110, eyes, parts: ['brows:spots2', `mouth:${mouth}`] });
+const LIDS = [['Elder', 'tLid'], ['Napper', 'tDozy'], ['Sage', 'tDroop'], ['Wanderer', 'tRaise'], ['Keeper', 'tWink']];
+const mk = keys => LIDS.map(([n, e], i) => TF(n, e, keys[i]));
+TURTLES.length = 0;
+TURTLES.push(
+  { key: '1', title: 'Long Jaw', note: 'A long mouth line that runs almost the full width of the head, like a real turtle’s jaw. Straight, gently smiling, or with a soft dip in the middle.',
+    faces: mk(['jFlat', 'jDip', 'jSmile', 'jWave', 'jTick']) },
+  { key: '2', title: 'Pale Throat', note: 'A soft smile with a pale throat patch below it, the light underside turtles have. The patch runs to the bottom edge, so it also shows in a stack.',
+    faces: mk(['cMid', 'cSmall', 'cFlat', 'cWide', 'cLines']) },
+  { key: '3', title: 'Smile Creases', note: 'A wide, content smile with little creases at the corners, like wrinkly cheeks. The friendliest option.',
+    faces: mk(['sCrease', 'sCreaseS', 'sCreaseF', 'sCreaseO', 'sCreaseW']) },
+  { key: '4', title: 'Old Grump', note: 'A gentle downturned mouth with jowl lines at the corners. Calm but crotchety, like an old tortoise.',
+    faces: mk(['gDown', 'gSmall', 'gFlat', 'gWide', 'gPout']) },
+);
+FACES.return = TURTLES[0].faces;
+
+/* ---------- round 6: pale throat + corner creases ---------- */
+const crease = (x, y, P) => `<path d="M${x - 1.5} ${y - 3.5} Q${x - 4} ${y} ${x - 1} ${y + 3.5} M${100 - x + 1.5} ${y - 3.5} Q${100 - x + 4} ${y} ${100 - x + 1} ${y + 3.5}" ${st(P, 1.8)}/>`;
+Object.assign(MOUTHS, {
+  kMid:   P => MOUTHS.cMid(P)   + crease(31, 125.5, P),
+  kSmall: P => MOUTHS.cSmall(P) + crease(35, 126.5, P),
+  kFlat:  P => MOUTHS.cFlat(P)  + crease(31, 127, P),
+  kWide:  P => MOUTHS.cWide(P)  + crease(28.5, 125, P),
+  kLines: P => MOUTHS.cLines(P) + crease(31, 125.5, P),
+});
+const paleTurtles = TURTLES.find(t => t.key === '2');
+TURTLES.length = 0;
+TURTLES.push(
+  { key: 'New', title: 'Pale Throat with creases', note: 'The pale throat smile with a small crease at each corner of the mouth.',
+    faces: mk(['kMid', 'kSmall', 'kFlat', 'kWide', 'kLines']) },
+  { key: 'Before', title: 'Pale Throat', note: 'The previous version without creases, for comparison.', faces: paleTurtles.faces },
+);
+FACES.return = TURTLES[0].faces;
+RULES.return = '';
+
+/* ---------- round 7: frog accents ---------- */
+Object.assign(BROWS, {
+  fSpots:  P => [[32,97,2.8],[42,95.5,1.7],[58,96,2.2],[67.5,98,3],[50,98.5,1.4],[28.5,115,2],[71.5,114.5,1.7],[32,134,2],[67,135,2.4],[44,136.5,1.4],[56.5,134.5,1.3]].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${P.light}"/>`).join(''),
+  fStripe: P => `<path d="M46.5 92 H53.5 L52 101 Q50 102.5 48 101 Z" fill="${P.light}"/><path d="M24 95 Q30.5 115 24 137 Z M76 95 Q69.5 115 76 137 Z" fill="${P.light}"/>`,
+  fCheeks: P => `<ellipse cx="29.5" cy="116" rx="3.4" ry="2.4" fill="${P.light}"/><ellipse cx="70.5" cy="116" rx="3.4" ry="2.4" fill="${P.light}"/>` + [[44,96,1.3],[50,94.5,1.3],[56,96,1.3]].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${P.light}"/>`).join(''),
+  fRims:   P => '',
+});
+/* light eye rims: drawn under the eye as a slightly larger light circle */
+const rimmed = k => (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="10.2" fill="${P.light}"/>` + EYES[k](x, y, P, s);
+for (const k of ['frog', 'frogHalf', 'frogUp', 'frogSide', 'frogDot']) EYES[k + 'R'] = rimmed(k);
+const baseFrogs = FACES.cancel;
+const withAccent = (brow, rim) => baseFrogs.map(f => ({ ...f, eyes: rim ? f.eyes + 'R' : f.eyes, parts: [...(brow ? [`brows:${brow}`] : []), ...f.parts] }));
+const OPTS = {
+  cancel: [
+    { key: 'Option 1', title: 'Spots', note: 'Light spots scattered over the head and chin, like a poison dart frog. The closest match to the turtle freckles.', faces: withAccent('fSpots') },
+    { key: 'Option 2', title: 'Stripes', note: 'A light stripe down the forehead and a light edge down each side of the face, like a tree frog.', faces: withAccent('fStripe') },
+    { key: 'Option 3', title: 'Glowing eyes', note: 'A light ring around each big frog eye, so the eyes pop out of the face.', faces: withAccent(null, true) },
+    { key: 'Option 4', title: 'Cheeks and dots', note: 'Small light cheek patches and three dots on the brow. The subtlest option.', faces: withAccent('fCheeks') },
+    { key: 'Before', title: 'No accent', note: 'The current frogs, for comparison.', faces: baseFrogs },
+  ],
+};
+FACES.cancel = OPTS.cancel[0].faces;
+
+/* ---------- round 8: frog accent experiments ---------- */
+Object.assign(BROWS, {
+  fBlush:  P => `<ellipse cx="29.5" cy="118.5" rx="5" ry="3.4" fill="${P.light}"/><ellipse cx="70.5" cy="118.5" rx="5" ry="3.4" fill="${P.light}"/>`,
+  fCheekS: P => `<ellipse cx="29.5" cy="117" rx="3.2" ry="2.3" fill="${P.light}"/><ellipse cx="70.5" cy="117" rx="3.2" ry="2.3" fill="${P.light}"/>`,
+  fSac:    P => `<circle cx="50" cy="135" r="5.5" fill="${P.light}"/><path d="M47 133.5 Q48.5 132 50.5 132.3" fill="none" stroke="${P.bg}" stroke-width="1.2" stroke-linecap="round"/>` + BROWS.fCheekS(P),
+  fGoggle: P => `<rect x="27" y="101" width="46" height="16" rx="8" fill="${P.light}"/>`,
+  fWarts:  P => [[27.5,115,1.6],[31,118.5,1.2],[27,120.5,1],[72.5,115,1.6],[69,118.5,1.2],[73,120.5,1],[45,96.5,1.2],[50,95.5,1.5],[55,96.5,1.2]].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${P.light}"/>`).join(''),
+});
+const capped = k => (x, y, P, s) => EYES[k](x, y, P, s) + `<path d="M${x - 9.2} ${y - 3} A9.6 9.6 0 0 1 ${x + 9.2} ${y - 3}" fill="none" stroke="${P.light}" stroke-width="2.6" stroke-linecap="round"/>`;
+for (const k of ['frog', 'frogHalf', 'frogUp', 'frogSide', 'frogDot']) EYES[k + 'C'] = capped(k);
+/* lip highlight: the face's own mouth redrawn in the light colour, 3 units lower, under the real one */
+const LIP = {};
+for (const f of baseFrogs) { const m = f.parts.find(p => p.startsWith('mouth:')).slice(6); LIP[m] = P => `<g transform="translate(0 3.2)">${MOUTHS[m]({ ...P, ink: P.light, bg: P.light })}</g>`; }
+Object.assign(MOUTHS, Object.fromEntries(Object.entries(LIP).map(([k, fn]) => ['lip_' + k, fn])));
+const acc = ({ brow, eye, lip }) => baseFrogs.map(f => {
+  const m = f.parts.find(p => p.startsWith('mouth:')).slice(6);
+  const parts = f.parts.filter(p => !p.startsWith('mouth:'));
+  return { ...f, eyes: f.eyes + (eye || ''), parts: [...(brow ? [`brows:${brow}`] : []), ...parts, ...(lip ? [`mouth:lip_${m}`] : []), `mouth:${m}`] };
+});
+OPTS.cancel = [
+  { key: 'A', title: 'Big blush', note: 'Larger cheek patches tucked into the corners of the mouth.', faces: acc({ brow: 'fBlush' }) },
+  { key: 'B', title: 'Eyelid caps', note: 'A light arc over the top of each eye, like the bulge of a frog’s eye, with small cheeks.', faces: acc({ brow: 'fCheekS', eye: 'C' }) },
+  { key: 'C', title: 'Lip line', note: 'A light echo under the mouth that follows its shape, with small cheeks. Makes the wide frog mouth the hero.', faces: acc({ brow: 'fCheekS', lip: true }) },
+  { key: 'D', title: 'Throat bubble', note: 'A small light bubble under the chin, the frog’s croaking sac, with small cheeks.', faces: acc({ brow: 'fSac' }) },
+  { key: 'E', title: 'Goggles', note: 'A light band behind both eyes, so they sit on it like goggles.', faces: acc({ brow: 'fGoggle' }) },
+  { key: 'F', title: 'Warts', note: 'Little clusters of light bumps on the cheeks and three on the brow.', faces: acc({ brow: 'fWarts' }) },
+  { key: 'Before', title: 'Cheeks and dots', note: 'The previous Option 4, for comparison.', faces: withAccent('fCheeks') },
+];
+FACES.cancel = OPTS.cancel[0].faces;
+
+/* ---------- round 9: lock frogs to the throat bubble; bear accent experiments ---------- */
+BROWS.fSac = P => `<circle cx="50" cy="135.8" r="4.4" fill="${P.light}"/><path d="M47.8 134.6 Q49 133.4 50.6 133.6" fill="none" stroke="${P.bg}" stroke-width="1.1" stroke-linecap="round"/>` + BROWS.fCheekS(P);
+FACES.cancel = acc({ brow: 'fSac' });
+delete OPTS.cancel;
+RULES.cancel = 'Round frog eyes, two little nostrils, a wide mouth, light cheeks and a light throat bubble under the chin.';
+
+Object.assign(BROWS, {
+  bMuzzle: P => `<ellipse cx="50" cy="124.5" rx="19.5" ry="12.5" fill="${P.light}"/>`,
+  bCrack:  P => `<path d="M53 92 L51 95.5 L54 98.5 L51.5 101.5 M51 95.5 L47.5 97" fill="none" stroke="${P.light}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M26 140 L28.5 135 L26.5 131.5 L29 127.5 M28.5 135 L31.5 136.5 M74 140 L72 136.5 L74 133" fill="none" stroke="${P.light}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  bFur:    P => `<path d="M24 92 H35 L33 95 L30.5 93.5 L28 97 L26 94.5 L24 97.5 Z M76 92 H65 L67 95 L69.5 93.5 L72 97 L74 94.5 L76 97.5 Z" fill="${P.light}"/><path d="M24 140 L26 135 L28 138.5 L30 134.5 L32 140 Z M76 140 L74 135 L72 138.5 L70 134.5 L68 140 Z" fill="${P.light}"/>`,
+  bPaint:  P => `<path d="M25.5 113 L33.5 115.5 L33.5 118 L25.5 115.5 Z M25.5 118.5 L33.5 121 L33.5 123.5 L25.5 121 Z M74.5 113 L66.5 115.5 L66.5 118 L74.5 115.5 Z M74.5 118.5 L66.5 121 L66.5 123.5 L74.5 121 Z" fill="${P.light}"/>`,
+});
+Object.assign(CHEST, {
+  bScar:   P => `<path d="M31 97 L47 116" stroke="${P.light}" stroke-width="2.2" stroke-linecap="round"/><path d="M34.5 103.5 l3 -2.4 M38.5 108.3 l3 -2.4 M42.5 113.1 l3 -2.4" stroke="${P.light}" stroke-width="1.3" stroke-linecap="round"/>`,
+  bClaw:   P => [0, 4, 8].map(d => `<path d="M${60 + d} 113 Q${63 + d} 119 ${61 + d} 124" fill="none" stroke="${P.light}" stroke-width="1.8" stroke-linecap="round"/>`).join(''),
+});
+const baseBears = FACES.shatter;
+const bearAcc = (before, after) => baseBears.map(f => ({ ...f, parts: [...(before ? [`brows:${before}`] : []), ...f.parts, ...(after ? [`chest:${after}`] : [])] }));
+OPTS.shatter = [
+  { key: 'A', title: 'Light muzzle', note: 'A pale patch around the snout and teeth, the lighter muzzle real bears have. Pairs with the turtle’s pale throat.', faces: bearAcc('bMuzzle') },
+  { key: 'B', title: 'Scar', note: 'A stitched scar across one eye. Battle-worn, and it fits a card that destroys things.', faces: bearAcc(null, 'bScar') },
+  { key: 'C', title: 'Cracks', note: 'Thin light cracks running in from the edges of the carving, as if it has been shattered and glued.', faces: bearAcc('bCrack') },
+  { key: 'D', title: 'War paint', note: 'Two light stripes on each cheek.', faces: bearAcc('bPaint') },
+  { key: 'E', title: 'Fur tufts', note: 'Jagged light fur at the four corners of the block. In a stack the bottom tufts meet the next bear’s top tufts.', faces: bearAcc('bFur') },
+  { key: 'Before', title: 'No accent', note: 'The current bears, for comparison.', faces: baseBears },
+];
+FACES.shatter = OPTS.shatter[0].faces;
+
+/* ---------- round 10: lock bears to war paint; raven accent experiments ---------- */
+FACES.shatter = bearAcc('bPaint');
+delete OPTS.shatter;
+RULES.shatter = 'Eyebrows, big eyes with big pupils, a pig snout, sharp teeth and light war paint on the cheeks.';
+
+Object.assign(BROWS, {
+  rMask:   P => `<path d="M25 103 Q50 98.5 75 103 L74 116 Q62 118.5 50 113.5 Q38 118.5 26 116 Z" fill="${P.light}"/>`,
+  rChev:   P => `<path d="M33 94.5 L50 100.5 L67 94.5 M40 93 L50 96.5 L60 93" fill="none" stroke="${P.light}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  rTears:  P => [29, 71].map(x => `<path d="M${x} 116 Q${x - 3} 121 ${x} 123 Q${x + 3} 121 ${x} 116 Z" fill="${P.light}"/>`).join(''),
+  rScales: P => [[28, 126], [34, 126], [31, 131], [37, 131], [28, 136], [34, 136]].map(([x, y]) => `<path d="M${x} ${y} a3 3 0 0 0 6 0" fill="none" stroke="${P.light}" stroke-width="1.5" stroke-linecap="round"/><path d="M${100 - x} ${y} a3 3 0 0 1 -6 0" fill="none" stroke="${P.light}" stroke-width="1.5" stroke-linecap="round"/>`).join(''),
+});
+Object.assign(CHEST, {
+  rGem:    P => `<path d="M50 92.8 L54.5 96.8 L50 101 L45.5 96.8 Z" fill="${P.light}" stroke="${P.ink}" stroke-width="1"/><path d="M45.5 96.8 H54.5" stroke="${P.ink}" stroke-width=".8"/>`,
+});
+const baseRavens = FACES.discard;
+const ravenAcc = (before, after) => baseRavens.map(f => ({ ...f, parts: [...(before ? [`brows:${before}`] : []), ...f.parts.filter(p => !(after === 'rGem' && p === 'brows:crest')), ...(after ? [`chest:${after}`] : [])] }));
+OPTS.discard = [
+  { key: 'A', title: 'Bandit mask', note: 'A light mask across both eyes. Ravens are thieves, and this card takes a card from your opponent’s hand.', faces: ravenAcc('rMask') },
+  { key: 'B', title: 'Stolen gem', note: 'A shiny light gem on the forehead, the kind of thing a raven steals.', faces: ravenAcc(null, 'rGem') },
+  { key: 'C', title: 'Feather chevrons', note: 'Two light V lines on the forehead pointing down to the beak, like layered head feathers.', faces: ravenAcc('rChev') },
+  { key: 'D', title: 'Teardrops', note: 'A light teardrop under the outer corner of each eye. Mischievous, a little sad.', faces: ravenAcc('rTears') },
+  { key: 'E', title: 'Cheek feathers', note: 'Light feather scallops on the lower cheeks on both sides of the beak.', faces: ravenAcc('rScales') },
+  { key: 'Before', title: 'No accent', note: 'The current ravens, for comparison.', faces: baseRavens },
+];
+FACES.discard = OPTS.discard[0].faces;
+
+/* ---------- round 11: raven combos ---------- */
+EYES.glareM = (x, y, P, s) => EYES.glare(x, y, { ...P, body: P.light }, s);
+const ravenMix = (befores, mask) => baseRavens.map(f => ({ ...f, eyes: mask && f.eyes === 'glare' ? 'glareM' : f.eyes, parts: [...befores.map(b => `brows:${b}`), ...f.parts] }));
+OPTS.discard = [
+  { key: 'New', title: 'Cheek feathers + mask', note: 'The bandit mask across the eyes and feather scallops on the lower cheeks. Schemer’s glaring eyelid now matches the mask.', faces: ravenMix(['rMask', 'rScales'], true) },
+  { key: 'New', title: 'Cheek feathers + chevrons', note: 'Feather V lines on the forehead and feather scallops on the cheeks, so the whole face reads as feathered.', faces: ravenMix(['rChev', 'rScales']) },
+  ...OPTS.discard.filter(o => ['A', 'C', 'E'].includes(o.key)).map(o => ({ ...o, key: 'Earlier ' + o.key })),
+];
+FACES.discard = OPTS.discard[0].faces;
+
+/* ---------- round 12: lock ravens; owl accent experiments ---------- */
+FACES.discard = ravenMix(['rMask', 'rScales'], true);
+delete OPTS.discard;
+RULES.discard = 'Big eyes, a pointed beak, a light bandit mask across the eyes and light feather scallops on the cheeks.';
+
+Object.assign(BROWS, {
+  oDisc:   P => `<circle cx="39" cy="109" r="11.5" fill="${P.light}"/><circle cx="61" cy="109" r="11.5" fill="${P.light}"/>`,
+  oTufts:  P => `<path d="M24 92 H35 L47 103 L44 105 Z M76 92 H65 L53 103 L56 105 Z" fill="${P.light}"/>`,
+  oSpeck:  P => [[29,96],[35,99],[65,99],[71,96],[27,119],[73,119],[30,125],[70,125]].map(([x, y]) => `<path d="M${x - 1.8} ${y - 1} L${x} ${y + 1.6} L${x + 1.8} ${y - 1}" fill="none" stroke="${P.light}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`).join(''),
+  oBib:    P => `<path d="M38 140 Q38 126 50 122 Q62 126 62 140 Z" fill="${P.light}"/>`,
+});
+Object.assign(CHEST, {
+  oScal:   P => [[32, 132], [38.5, 132], [55.5, 132], [62, 132], [35.2, 136.5], [58.8, 136.5]].map(([x, y]) => `<path d="M${x} ${y} a3.2 3.2 0 0 0 6.4 0" fill="none" stroke="${P.light}" stroke-width="1.7" stroke-linecap="round"/>`).join(''),
+});
+const baseOwls = FACES.repeat;
+const owlAcc = (befores, swapChest) => baseOwls.map(f => ({ ...f, parts: [...befores.map(b => `brows:${b}`), ...f.parts.map(p => swapChest && p === 'chest:chev' ? 'chest:oScal' : p)] }));
+OPTS.repeat = [
+  { key: 'A', title: 'Facial discs', note: 'A light disc behind each eye, the round face feathers real owls have. Makes the big eyes even bigger.', faces: owlAcc(['oDisc']) },
+  { key: 'B', title: 'Light breast feathers', note: 'The chest chevrons become light feather scallops, matching the raven cheeks.', faces: owlAcc([], true) },
+  { key: 'C', title: 'Horn tufts', note: 'Light feather wedges sweep from the top corners in toward the beak, like a horned owl’s brows.', faces: owlAcc(['oTufts']) },
+  { key: 'D', title: 'Speckles', note: 'Small light arrow-shaped speckles on the brow and cheeks, like a barn owl.', faces: owlAcc(['oSpeck']) },
+  { key: 'E', title: 'Discs + breast feathers', note: 'Options A and B together.', faces: owlAcc(['oDisc'], true) },
+  { key: 'Before', title: 'No accent', note: 'The current owls, for comparison.', faces: baseOwls },
+];
+FACES.repeat = OPTS.repeat[0].faces;
+
+/* ---------- round 13: owl tufts + discs ---------- */
+EYES.liddedL = (x, y, P, s) => EYES.lidded(x, y, { ...P, body: P.light }, s);
+const owlMix = (befores, swapChest) => owlAcc(befores, swapChest).map(f => befores.includes('oDisc') && f.eyes === 'lidded' ? { ...f, eyes: 'liddedL' } : f);
+OPTS.repeat = [
+  { key: 'New', title: 'Horn tufts + discs', note: 'The light tufts sweep down from the top corners into the facial discs, so the whole face is framed in light feathers.', faces: owlMix(['oTufts', 'oDisc']) },
+  { key: 'New', title: 'Horn tufts + discs + breast feathers', note: 'The same, with the chest chevrons turned into light scallops.', faces: owlMix(['oTufts', 'oDisc'], true) },
+  { key: 'Earlier A', title: 'Facial discs', note: 'Discs only. Dreamer’s eyelids no longer cut into the discs.', faces: owlMix(['oDisc']) },
+  { key: 'Earlier C', title: 'Horn tufts', note: 'Tufts only.', faces: owlMix(['oTufts']) },
+];
+FACES.repeat = OPTS.repeat[0].faces;
+
+/* ---------- round 14: owls use tufts + discs + breast feathers; tufts + discs kept as the alternative ---------- */
+OPTS.repeat = [
+  { key: 'Chosen', title: 'Horn tufts + discs + breast feathers', note: 'In use everywhere on this page, including the totem builder.', faces: owlMix(['oTufts', 'oDisc'], true) },
+  { key: 'Alternative', title: 'Horn tufts + discs', note: 'The same without the light breast feathers, kept here so you can switch back.', faces: owlMix(['oTufts', 'oDisc']) },
+];
+FACES.repeat = OPTS.repeat[0].faces;
+RULES.repeat = 'Big ringed owl eyes, a small pointed beak, light horn tufts running into light facial discs, and light feather scallops on the chest.';
+
+/* ---------- round 15: back to tufts + discs; chest chevrons in light or black ---------- */
+CHEST.chevL = P => CHEST.chev({ ...P, ink: P.light });
+CHEST.chevK = P => `<path d="M31 135 l4 -3 l4 3 l4 -3 l4 3 M53 135 l4 -3 l4 3 l4 -3 l4 3" fill="none" stroke="#14100a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+const owlChev = k => owlMix(['oTufts', 'oDisc']).map(f => ({ ...f, parts: f.parts.map(p => p === 'chest:chev' ? `chest:${k}` : p) }));
+OPTS.repeat = [
+  { key: 'Light', title: 'Horn tufts + discs, light chest chevrons', note: 'The chest zigzags in the same pale yellow as the tufts and discs. In use on this page.', faces: owlChev('chevL') },
+  { key: 'Black', title: 'Horn tufts + discs, black chest chevrons', note: 'The chest zigzags in black, slightly thicker, so they stand out against the dark gold.', faces: owlChev('chevK') },
+];
+FACES.repeat = OPTS.repeat[0].faces;
+RULES.repeat = 'Big ringed owl eyes, a small pointed beak, light horn tufts running into light facial discs, and zigzag feathers on the chest.';
+
+/* ---------- round 16: light chevrons locked; softer owl brows ---------- */
+Object.assign(BROWS, {
+  oArcs:   P => `<path d="M31 98 Q39 92 47 98 M53 98 Q61 92 69 98" ${st(P, 2.2)}/>`,
+  oQuirk:  P => `<path d="M31 98 Q39 93 47 98 M53 96 Q61 89.5 69 96" ${st(P, 2.2)}/>`,
+  oWonder: P => `<path d="M31 100 Q50 91.5 69 100" ${st(P, 2.2)}/>`,
+});
+const SOFT = { Watcher: { brow: 'oArcs' }, Sentinel: { brow: 'oQuirk', eyes: 'ring' }, Stargazer: { brow: 'oWonder' } };
+FACES.repeat = owlChev('chevL').map(f => {
+  const fix = SOFT[f.n]; if (!fix) return f;
+  return { ...f, eyes: fix.eyes || f.eyes, parts: [...f.parts.filter(p => !['brows:chev', 'brows:vee'].includes(p)), `brows:${fix.brow}`] };
+});
+const angryOwls = owlChev('chevL');
+OPTS.repeat = [
+  { key: 'Now', title: 'Softer brows', note: 'Watcher has gentle arches, Sentinel raises one brow and looks curious, and Stargazer has one wide arch of wonder. Hypnotist and Dreamer are unchanged.', faces: FACES.repeat },
+  { key: 'Before', title: 'Previous brows', note: 'For comparison.', faces: angryOwls },
+];
+RULES.repeat = 'Big ringed owl eyes, a small pointed beak, light horn tufts running into light facial discs, and light zigzag feathers on the chest.';
+
+/* ---------- round 17: angular ravens built on Collector ---------- */
+const poly = (pts, fill, extra = '') => `<path d="M${pts.map(p => p.join(' ')).join(' L')} Z" fill="${fill}" ${extra}/>`;
+const dpup = (x, y, r, P) => poly([[x, y - r], [x + r, y], [x, y + r], [x - r, y]], P.bg);
+Object.assign(EYES, {
+  aDia:   (x, y, P) => poly([[x, y - 9.2], [x + 9.2, y], [x, y + 9.2], [x - 9.2, y]], P.ink) + dpup(x, y, 3.4, P),
+  aWide:  (x, y, P) => poly([[x, y - 6.5], [x + 10.5, y], [x, y + 6.5], [x - 10.5, y]], P.ink) + dpup(x, y, 3, P),
+  aLook:  (x, y, P, s) => poly([[x, y - 9.2], [x + 9.2, y], [x, y + 9.2], [x - 9.2, y]], P.ink) + dpup(x - 2.8 * s, y + 1, 3, P),
+  aSly:   (x, y, P, s) => poly([[x + 10 * s, y - 4], [x, y - 6.5], [x - 9 * s, y + 1.5], [x, y + 5.5]], P.ink) + dpup(x, y - .3, 2.6, P),
+  aLid:   (x, y, P) => poly([[x, y - 9.2], [x + 9.2, y], [x, y + 9.2], [x - 9.2, y]], P.ink) + dpup(x, y + 2.6, 3, P) + poly([[x - 9.6, y - .2], [x, y - 9.8], [x + 9.6, y - .2]], P.light) + `<path d="M${x - 9.2} ${y} H${x + 9.2}" ${st(P, 2.2)}/>`,
+});
+const beakA = (pts, P, line) => poly(pts, P.bg, `stroke="${P.ink}" stroke-width="1.6" stroke-linejoin="round"`) + (line ? `<path d="${line}" ${st(P, 1.4)}/>` : '');
+Object.assign(MOUTHS, {
+  aWide:  P => beakA([[37, 114], [63, 114], [50, 135]], P, 'M40.5 119 H59.5'),
+  aLong:  P => beakA([[42, 113], [58, 113], [50, 139]], P),
+  aShort: P => beakA([[37.5, 114], [62.5, 114], [50, 129]], P),
+  aPlain: P => beakA([[38, 114], [62, 114], [50, 136]], P),
+  aOpen:  P => beakA([[37.5, 114], [62.5, 114], [50, 127]], P) + beakA([[44.5, 130], [55.5, 130], [50, 137.5]], P),
+});
+const RAVEN_ANG = [
+  { n: 'Thief',     eyes: 'aLook', mouth: 'aLong' },
+  { n: 'Schemer',   eyes: 'aSly',  mouth: 'aShort' },
+  { n: 'Collector', eyes: 'aDia',  mouth: 'aWide' },
+  { n: 'Caller',    eyes: 'aWide', mouth: 'aOpen' },
+  { n: 'Seer',      eyes: 'aLid',  mouth: 'aPlain' },
+].map(f => ({ n: f.n, eyes: f.eyes, parts: ['brows:rMask', 'brows:rScales', `mouth:${f.mouth}`] }));
+const ravensBefore = FACES.discard;
+FACES.discard = RAVEN_ANG;
+OPTS.discard = [
+  { key: 'Now', title: 'Sharp angles', note: 'Every eye is a diamond or rhombus with a diamond pupil, and every beak is a plain triangle. They vary by how the diamond is shaped (wide, sly, lidded, looking sideways) and by the beak length.', faces: RAVEN_ANG },
+  { key: 'Before', title: 'Previous ravens', note: 'For comparison.', faces: ravensBefore },
+];
+RULES.discard = 'Sharp, angular faces: diamond eyes, a straight-edged beak, a light bandit mask across the eyes and light feather scallops on the cheeks.';
+
+/* ---------- round 18: Caller becomes Crook, with an angular hooked beak ---------- */
+MOUTHS.aHook = P => beakA([[42.5, 114], [57.5, 114], [56.5, 125], [47, 137], [50, 125.5]], P);
+EYES.aDown = (x, y, P, s) => poly([[x, y - 9.2], [x + 9.2, y], [x, y + 9.2], [x - 9.2, y]], P.ink) + dpup(x - 1.6 * s, y + 2.4, 3, P);
+RAVEN_ANG[3] = { n: 'Crook', eyes: 'aDown', parts: ['brows:rMask', 'brows:rScales', 'mouth:aHook'] };
+OPTS.discard[0].note = 'Every eye is a diamond with a diamond pupil and every beak is made of straight lines. Crook replaces Caller, with an angular version of the old Schemer’s hooked beak.';
+
+/* ---------- round 19: Collector candidates ---------- */
+const DIA = (x, y, P, rx = 9.2, ry = 9.2) => poly([[x, y - ry], [x + rx, y], [x, y + ry], [x - rx, y]], P.ink);
+Object.assign(EYES, {
+  cSpark: (x, y, P) => DIA(x, y, P) + `<path d="M${x} ${y - 4.6} L${x + 1.1} ${y - 1.1} L${x + 4.6} ${y} L${x + 1.1} ${y + 1.1} L${x} ${y + 4.6} L${x - 1.1} ${y + 1.1} L${x - 4.6} ${y} L${x - 1.1} ${y - 1.1} Z" fill="${P.bg}"/>`,
+  cBig:   (x, y, P) => DIA(x, y, P, 10.4, 10.4) + dpup(x, y, 5, P) + dpup(x, y, 2, { bg: P.ink }),
+  cSquint:(x, y, P) => DIA(x, y, P, 10.5, 4.6) + dpup(x, y, 2.4, P),
+  cUp:    (x, y, P, s) => DIA(x, y, P) + dpup(x + 1.6 * s, y - 2.6, 3, P),
+});
+Object.assign(MOUTHS, {
+  cWideP: P => beakA([[37, 114], [63, 114], [50, 133]], P),
+  cNarrowS: P => beakA([[44, 114], [56, 114], [50, 130]], P),
+  cStep:  P => beakA([[38, 114], [62, 114], [56, 123], [53, 123], [50, 136], [47, 123], [44, 123]], P),
+});
+const ravenWith = c => RAVEN_ANG.map((f, i) => i === 2 ? { n: 'Collector', eyes: c.eyes, parts: ['brows:rMask', 'brows:rScales', `mouth:${c.mouth}`] } : f);
+const COLL = [
+  { key: 'Option 1', title: 'Sparkle eyes', note: 'A light four-point glint in each diamond, like the shine of something it wants. Wide plain beak.', eyes: 'cSpark', mouth: 'cWideP' },
+  { key: 'Option 2', title: 'Big diamonds', note: 'Larger diamond eyes with a big light pupil and a dark centre. Short narrow beak.', eyes: 'cBig', mouth: 'cNarrowS' },
+  { key: 'Option 3', title: 'Greedy squint', note: 'Flat, narrowed diamonds. Wide plain beak.', eyes: 'cSquint', mouth: 'cWideP' },
+  { key: 'Option 4', title: 'Eyes up, stepped beak', note: 'Pupils glance up and out; the beak steps in halfway down like a carved arrowhead.', eyes: 'cUp', mouth: 'cStep' },
+];
+OPTS.discard = [
+  ...COLL.map(c => ({ key: c.key, title: `Collector: ${c.title}`, note: c.note, faces: ravenWith(c) })),
+  { key: 'Before', title: 'Current Collector', note: 'Plain diamonds and a wide beak with a line across the top.', faces: RAVEN_ANG },
+];
+FACES.discard = OPTS.discard[0].faces;
+
+/* ---------- round 20: Collector = sparkle eyes + centre line beak; X glyph for Discard ---------- */
+MOUTHS.cWideL = P => MOUTHS.cWideP(P) + `<path d="M50 114 V126" ${st(P, 1.4)}/>`;
+const centreLine = k => P => MOUTHS[k](P) + `<path d="M50 ${k === 'aLong' ? 113 : 114} V${k === 'aShort' ? 122 : 126}" ${st(P, 1.4)}/>`;
+for (const k of ['aLong', 'aShort', 'aPlain']) MOUTHS[k + 'L'] = centreLine(k);
+const RAVEN_FINAL = ravenWith({ eyes: 'cSpark', mouth: 'cWideL' });
+const RAVEN_ALL_LINES = RAVEN_FINAL.map(f => ({ ...f, parts: f.parts.map(p => ['mouth:aLong', 'mouth:aShort', 'mouth:aPlain'].includes(p) ? p + 'L' : p) }));
+OPTS.discard = [
+  { key: 'Now', title: 'Collector with a centre line', note: 'Sparkle eyes and a wide beak with a line down the middle. The other four beaks are unchanged.', faces: RAVEN_FINAL },
+  { key: 'Also', title: 'Centre line on every raven', note: 'The same line on all the straight beaks, so the line becomes part of the raven family. Crook’s hooked beak stays as it is.', faces: RAVEN_ALL_LINES },
+];
+FACES.discard = RAVEN_FINAL;
+
+/* ---------- round 21: no centre lines; Collector = big diamonds + short narrow beak ---------- */
+FACES.discard = ravenWith({ eyes: 'cBig', mouth: 'cNarrowS' });
+delete OPTS.discard;
+
+/* ---------- round 22: Schemer beak candidates ---------- */
+Object.assign(MOUTHS, {
+  sSmirk: P => beakA([[43.5, 114], [56.5, 114], [55, 132]], P),
+  sOpen:  P => beakA([[43.5, 114], [56.5, 114], [50, 125]], P) + beakA([[46, 128], [54, 128], [50, 134]], P),
+  sKite:  P => beakA([[50, 112.5], [56.5, 118], [50, 136], [43.5, 118]], P),
+});
+const ravensNow = FACES.discard;
+const withSchemer = m => ravensNow.map(f => f.n === 'Schemer' ? { ...f, parts: f.parts.map(p => p.startsWith('mouth:') ? `mouth:${m}` : p) } : f);
+OPTS.discard = [
+  { key: 'Option 1', title: 'Smirk', note: 'A narrow beak whose tip leans to one side, like a sly smirk.', faces: withSchemer('sSmirk') },
+  { key: 'Option 2', title: 'Whisper', note: 'A narrow beak slightly open, as if it is muttering a plan.', faces: withSchemer('sOpen') },
+  { key: 'Option 3', title: 'Kite', note: 'A narrow diamond-shaped beak that echoes the diamond eyes.', faces: withSchemer('sKite') },
+  { key: 'Before', title: 'Current Schemer', note: 'Short and wide.', faces: ravensNow },
+];
+FACES.discard = OPTS.discard[0].faces;
+
+/* ---------- round 23: kite beaks on every raven (trial) ---------- */
+const kite = (top, wide, mid, tip, tilt = 0) => P => beakA([[50, top], [50 + wide, mid], [50 + tilt, tip], [50 - wide, mid]], P);
+Object.assign(MOUTHS, {
+  kiteLong:  kite(112.5, 6, 118, 139),
+  kiteStd:   kite(112.5, 6.5, 118, 136),
+  kiteShort: kite(113, 6, 118, 131),
+  kiteTilt:  kite(112.5, 6.5, 118, 136, 4.5),
+  kiteWide:  kite(112.5, 9, 119, 135),
+});
+const KITES = { Thief: 'kiteLong', Schemer: 'kiteStd', Collector: 'kiteShort', Crook: 'kiteTilt', Seer: 'kiteWide' };
+const ravensPrev = OPTS.discard[0].faces;
+FACES.discard = ravensPrev.map(f => ({ ...f, parts: f.parts.map(p => p.startsWith('mouth:') ? `mouth:${KITES[f.n]}` : p) }));
+OPTS.discard = [
+  { key: 'Trial', title: 'Kite beaks on everyone', note: 'Every raven gets a diamond-shaped beak that echoes its diamond eyes. The kites vary: long (Thief), standard (Schemer), short (Collector), tip leaning sideways (Crook), wide (Seer).', faces: FACES.discard },
+  { key: 'Before', title: 'Mixed beaks, Schemer smirk', note: 'For comparison.', faces: ravensPrev },
+];
+
+/* ---------- round 24: kites only on Collector and Seer ---------- */
+FACES.discard = ravensPrev.map(f => ['Collector', 'Seer'].includes(f.n) ? { ...f, parts: f.parts.map(p => p.startsWith('mouth:') ? `mouth:${KITES[f.n]}` : p) } : f);
+delete OPTS.discard;
+
+/* ---------- round 25: no eyebrows on owls ---------- */
+FACES.repeat = FACES.repeat.map(f => ({ ...f, eyes: f.n === 'Sentinel' ? 'ringLook' : f.eyes, parts: f.parts.filter(p => !['brows:oArcs', 'brows:oQuirk', 'brows:oWonder'].includes(p)) }));
+delete OPTS.repeat;
+
+/* ---------- round 26: turtles with more character ---------- */
+Object.assign(EYES, {
+  tSpecs: (x, y, P, s) => EYES.tLid(x, y, P) + `<circle cx="${x}" cy="${y}" r="8.6" fill="none" stroke="${P.ink}" stroke-width="1.6"/>` + (s > 0 ? `<path d="M${x - 13.4} ${y - 1} Q${x - 11} ${y - 3} ${x - 8.6} ${y - 1}" ${st(P, 1.6)}/>` : `<path d="M${x - 8.6} ${y - 1} L${x - 12} ${y - 3.5}" ${st(P, 1.4)}/>`) + (s > 0 ? `<path d="M${x + 8.6} ${y - 1} L${x + 12} ${y - 3.5}" ${st(P, 1.4)}/>` : ''),
+  tSleep: (x, y, P) => `<path d="M${x - 6.5} ${y + 1} Q${x} ${y + 6} ${x + 6.5} ${y + 1}" ${st(P, 2.6)}/><path d="M${x - 5} ${y + 4} l-1.6 2.2 M${x + 5} ${y + 4} l1.6 2.2" ${st(P, 1.3)}/>`,
+  tHappy: (x, y, P) => `<path d="M${x - 6.5} ${y + 2.5} Q${x} ${y - 5.5} ${x + 6.5} ${y + 2.5}" ${st(P, 2.8)}/>`,
+  tWide:  (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="6.8" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x + 2.2}" cy="${y - .6}" r="3.3" fill="${P.ink}"/><circle cx="${x + 3.1}" cy="${y - 1.6}" r="1" fill="${P.bg}"/>`,
+});
+Object.assign(MOUTHS, {
+  tGrin:   P => `<path d="M37 130 Q50 136 63 130 L61 140 H39 Z" fill="${P.bg}"/><path d="M31 124 Q50 139 69 124 Z" fill="${P.ink}"/><path d="M34.5 125 Q50 129 65.5 125" fill="none" stroke="${P.bg}" stroke-width="1.4"/>` + crease(31, 124, P),
+  tTongue: P => MOUTHS.kMid(P) + `<path d="M45.5 128.6 Q50 137 54.5 128.6 Z" fill="${P.light}" stroke="${P.ink}" stroke-width="1.4" stroke-linejoin="round"/><path d="M50 129 V132.5" stroke="${P.ink}" stroke-width="1"/>`,
+});
+const T2 = (n, eyes, mouth) => ({ n, ey: 110, eyes, parts: ['brows:spots2', `mouth:${mouth}`] });
+const turtlesBefore = FACES.return;
+FACES.return = [
+  T2('Elder', 'tSpecs', 'kMid'),
+  T2('Napper', 'tSleep', 'kFlat'),
+  T2('Sage', 'tHappy', 'kSmall'),
+  T2('Wanderer', 'tWide', 'tGrin'),
+  T2('Keeper', 'tWink', 'tTongue'),
+];
+OPTS.return = [
+  { key: 'Now', title: 'One trait each', note: 'Elder wears round spectacles, Napper is fast asleep, Sage has contented smiling eyes, Wanderer is wide-eyed with a big grin, and Keeper winks with its tongue out.', faces: FACES.return },
+  { key: 'Before', title: 'Previous turtles', note: 'For comparison.', faces: turtlesBefore },
+];
+
+/* ---------- round 27: calmer Wanderer, single-ring spectacles, no tongue ---------- */
+EYES.tSpecs1 = (x, y, P, s) => `<circle cx="${x}" cy="${y}" r="7.6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.8"/><circle cx="${x}" cy="${y + 2}" r="2.6" fill="${P.ink}"/><path d="M${x - 7.6} ${y - .5} H${x + 7.6}" ${st(P, 2)}/><path d="M${x - 6.6} ${y - 4} A7.6 7.6 0 0 1 ${x + 6.6} ${y - 4} L${x + 7.6} ${y - .5} H${x - 7.6} Z" fill="${P.body}"/><circle cx="${x}" cy="${y}" r="7.6" fill="none" stroke="${P.ink}" stroke-width="1.8"/>` +
+  (s > 0 ? `<path d="M${x - 14.4} ${y - 1} Q${x - 11} ${y - 3.5} ${x - 7.6} ${y - 1}" ${st(P, 1.6)}/><path d="M${x + 7.6} ${y - 1} L${x + 12} ${y - 3.5}" ${st(P, 1.4)}/>` : `<path d="M${x - 7.6} ${y - 1} L${x - 12} ${y - 3.5}" ${st(P, 1.4)}/>`);
+FACES.return = [
+  T2('Elder', 'tSpecs1', 'kMid'),
+  T2('Napper', 'tSleep', 'kFlat'),
+  T2('Sage', 'tHappy', 'kSmall'),
+  T2('Wanderer', 'tWide', 'kWide'),
+  T2('Keeper', 'tWink', 'kLines'),
+];
+OPTS.return[0] = { key: 'Now', title: 'One trait each', note: 'Elder wears round spectacles, Napper is fast asleep, Sage has contented smiling eyes, Wanderer is wide-eyed and curious, and Keeper winks.', faces: FACES.return };
+
+/* ---------- round 28: curious Wanderer ---------- */
+MOUTHS.tCurious = P => `<path d="M40 130 Q50 134 60 130 L58.5 140 H41.5 Z" fill="${P.bg}"/><ellipse cx="50" cy="126.5" rx="3.4" ry="2.8" fill="${P.ink}"/>` + crease(43, 126.5, P);
+FACES.return[3] = T2('Wanderer', 'tWide', 'tCurious');
+OPTS.return[0].faces = FACES.return;
+
+/* ---------- round 29: Wanderer eyes: lidded, gazing off to the side ---------- */
+EYES.tGlance = (x, y, P) => `<circle cx="${x}" cy="${y}" r="6" fill="${P.bg}" stroke="${P.ink}" stroke-width="1.6"/><circle cx="${x + 2.6}" cy="${y + 1.4}" r="2.5" fill="${P.ink}"/><rect x="${x - 7.5}" y="${y - 7.5}" width="15" height="6.4" fill="${P.body}"/><path d="M${x - 7} ${y - 1.1} H${x + 7}" ${st(P, 2.4)}/>`;
+FACES.return[3] = T2('Wanderer', 'tGlance', 'tCurious');
+OPTS.return[0].faces = FACES.return;
+OPTS.return[0].note = 'Elder wears round spectacles, Napper is fast asleep, Sage has contented smiling eyes, Wanderer gazes off to the side, and Keeper winks.';
+
+/* ---------- round 30: turtles settled; bears lose their eyebrows ---------- */
+delete OPTS.return;
+const bearsWithBrows = FACES.shatter;
+FACES.shatter = FACES.shatter.map(({ brow, ...f }) => ({ ...f, parts: f.parts.filter(p => p !== 'brows:uni') }));
+OPTS.shatter = [
+  { key: 'Now', title: 'No eyebrows', note: 'The bears without brows. Bull keeps its heavy glaring lids, which now carry most of its attitude.', faces: FACES.shatter },
+  { key: 'Before', title: 'With eyebrows', note: 'For comparison.', faces: bearsWithBrows },
+];
+RULES.shatter = 'Big eyes with big pupils, a pig snout, sharp teeth and light war paint on the cheeks.';
+
+/* ---------- round 31: square bear eyes with plain red middles ---------- */
+const sq = (x, y, w, h, P, r = 2) => `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${r}" fill="${P.ink}"/>`;
+const mid = (x, y, w, h, P) => `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="1" fill="${P.bg}"/>`;
+Object.assign(EYES, {
+  qBrute: (x, y, P) => sq(x, y, 14, 12.5, P) + mid(x, y, 6.5, 6, P),
+  qBull:  (x, y, P, s) => sq(x, y, 14, 12.5, P) + mid(x, y + 1, 6.5, 5.5, P) + `<path d="M${x - 8} ${y - 8} L${x + 8} ${y - 8} L${x + 8} ${y - 2 + 3 * s} L${x - 8} ${y - 2 - 3 * s} Z" fill="${P.body}"/>`,
+  qWild:  (x, y, P) => sq(x, y, 15.5, 14, P, 2.5) + mid(x, y, 4.5, 4.5, P),
+  qLook:  (x, y, P, s) => sq(x, y, 14, 12.5, P) + mid(x - 2.4 * s, y + 1.6, 6, 5.5, P),
+  qBored: (x, y, P) => sq(x, y, 14, 12.5, P) + mid(x, y + 2, 6.5, 4.5, P) + `<rect x="${x - 7.5}" y="${y - 7.5}" width="15" height="5.2" fill="${P.body}"/><path d="M${x - 7} ${y - 2.3} H${x + 7}" ${st(P, 2.2)}/>`,
+});
+const SQ = { Brute: 'qBrute', Bull: 'qBull', Roarer: 'qWild', Grinner: 'qLook', Grump: 'qBored' };
+const bearsRound = FACES.shatter;
+FACES.shatter = bearsRound.map(f => ({ ...f, eyes: SQ[f.n] }));
+OPTS.shatter = [
+  { key: 'Now', title: 'Square eyes', note: 'Every bear has square white eyes with a plain red middle. They differ by size, where the middle sits, and the lids: Bull glares, Roarer stares with a tiny middle, Grinner looks down, Grump is half-lidded.', faces: FACES.shatter },
+  { key: 'Before', title: 'Round eyes', note: 'For comparison.', faces: bearsRound },
+];
+RULES.shatter = 'Square eyes with red middles, a pig snout, sharp teeth and light war paint on the cheeks.';
+
+/* ---------- round 32: squarer snouts ---------- */
+const snout = (x, y, w, h, P, dark) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.8" fill="${dark ? P.ink : P.bg}" ${dark ? '' : `stroke="${P.ink}" stroke-width="1.6"`}/>` +
+  [x + w * .3, x + w * .7].map(cx => `<rect x="${cx - 1.3}" y="${y + h / 2 - 1.8}" width="2.6" height="3.6" rx=".6" fill="${dark ? P.body : P.ink}"/>`).join('');
+Object.assign(NOSES, {
+  sqPig:   P => snout(42, 113, 16, 9, P),
+  sqWide:  P => snout(40, 113.5, 20, 8, P),
+  sqBlock: P => snout(43.5, 112.5, 13, 10, P),
+  sqDark:  P => snout(42, 113, 16, 9, P, true),
+});
+const SQN = { 'noses:pig': 'noses:sqPig', 'noses:pigWide': 'noses:sqWide', 'noses:pigRound': 'noses:sqBlock', 'noses:pigDark': 'noses:sqDark' };
+const bearsRoundNose = FACES.shatter;
+FACES.shatter = bearsRoundNose.map(f => ({ ...f, parts: f.parts.map(p => SQN[p] || p) }));
+OPTS.shatter = [
+  { key: 'Now', title: 'Square snouts', note: 'The snouts have tight corners and square nostrils to match the square eyes.', faces: FACES.shatter },
+  { key: 'Before', title: 'Rounded snouts', note: 'For comparison.', faces: bearsRoundNose },
+];
+RULES.shatter = 'Square eyes with red middles, a square pig snout, sharp teeth and light war paint on the cheeks.';
+
+/* ---------- round 33: turtle nostrils and snout experiments ---------- */
+Object.assign(CHEST, {
+  tNos:   P => `<path d="M46.6 119.2 l1.6 1.6 M53.4 119.2 l-1.6 1.6" ${st(P, 1.8)}/>`,
+  tNosD:  P => `<ellipse cx="47.3" cy="120" rx="1.3" ry="1.7" fill="${P.ink}" transform="rotate(-25 47.3 120)"/><ellipse cx="52.7" cy="120" rx="1.3" ry="1.7" fill="${P.ink}" transform="rotate(25 52.7 120)"/>`,
+  tSnout: P => `<path d="M42 116.5 Q50 113 58 116.5" ${st(P, 1.6)}/>` + CHEST.tNosD(P),
+});
+Object.assign(BROWS, {
+  tScute: P => `<path d="M29 103 Q50 95.5 71 103" ${st(P, 1.6)}/><path d="M40.5 99.3 L39.5 95.5 M59.5 99.3 L60.5 95.5" ${st(P, 1.4)}/>`,
+});
+const turtlesNow = FACES.return;
+const addT = (extra) => turtlesNow.map(f => ({ ...f, parts: [...f.parts, ...extra] }));
+OPTS.return = [
+  { key: 'Option 1', title: 'Nostrils', note: 'Two small slanted nostrils between the eyes and the mouth.', faces: addT(['chest:tNosD']) },
+  { key: 'Option 2', title: 'Nostrils + snout ridge', note: 'The nostrils sit under a soft arch, so the middle of the face reads as a turtle snout.', faces: addT(['chest:tSnout']) },
+  { key: 'Option 3', title: 'Nostrils + head plates', note: 'Nostrils, plus a curved line across the forehead with two seams, like the plates on a turtle’s head.', faces: addT(['chest:tNosD', 'brows:tScute']) },
+  { key: 'Before', title: 'Current turtles', note: 'For comparison.', faces: turtlesNow },
+];
+FACES.return = OPTS.return[0].faces;
+
+/* ---------- round 34: turtles = snout ridge + nostrils, eyes higher, Wanderer smiles ---------- */
+CHEST.tSnout2 = P => `<path d="M42 117.5 Q50 114 58 117.5" ${st(P, 1.6)}/>` + CHEST.tNosD(P);
+FACES.return = turtlesNow.map(f => ({ ...f, ey: 107, parts: [...f.parts.map(p => f.n === 'Wanderer' && p.startsWith('mouth:') ? 'mouth:kWide' : p), 'chest:tSnout2'] }));
+delete OPTS.return;
+RULES.return = 'Freckles, heavy-lidded eyes, a snout ridge with two nostrils, a soft smile with creases at the corners and a pale throat.';
+
+/* ---------- round 35: eyes back at 110, nostril dots only; beak-plate comparison ---------- */
+const turtleBase = turtlesNow.map(f => ({ ...f, ey: 110, parts: [...f.parts.map(p => f.n === 'Wanderer' && p.startsWith('mouth:') ? 'mouth:kWide' : p), 'chest:tNosD'] }));
+const BEAKS = { Elder: 'pRound', Napper: 'pSmall', Sage: 'pHook', Wanderer: 'pWide', Keeper: 'pPoint' };
+const turtleBeaks = turtleBase.map(f => ({ ...f, parts: f.parts.map(p => p.startsWith('mouth:') ? `mouth:${BEAKS[f.n]}` : p).filter(p => p !== 'chest:tNosD') }));
+FACES.return = turtleBase;
+OPTS.return = [
+  { key: 'Now', title: 'Smiles + nostrils', note: 'Eyes back at their old height, no snout ridge, two nostril dots. Wanderer smiles.', faces: turtleBase },
+  { key: 'Compare', title: 'Snap beaks', note: 'The same turtles with the pale beak plates from the earlier Option B instead of the smile and throat. The nostrils are left off because the beak plate covers that spot.', faces: turtleBeaks },
+];
+RULES.return = 'Freckles, heavy-lidded eyes, two nostrils, a soft smile with creases at the corners and a pale throat.';
+
+/* ---------- round 36: turtles locked (smiles + nostrils) ---------- */
+FACES.return = turtleBase;
+delete OPTS.return;
+
+const PARTS = { brows: BROWS, noses: NOSES, mouth: MOUTHS, chest: CHEST };
+
+const wings = P => mirror(`<path d="M24 92 L24 80 L6 70 L10 77 L3 79 L12 84 L6 88 L16 90 Z" fill="${P.body}"/>`);
+function art(c, v, set) {
+  const P = pal(c), f = (set || FACES[c.t])[v];
+  let s = wings(P);
+  s += `<rect x="24" y="92" width="52" height="48" rx="3" fill="${P.body}"/>`;
+  for (const p of f.parts) { const [g, k] = p.split(':'); if (g === 'brows') s += PARTS[g][k](P); }
+  const ey = f.ey || 109;
+  s += EYES[f.eyes](39, ey, P, -1) + EYES[f.eyes](61, ey, P, 1);
+  if (f.brow) s += BROW[f.brow](39, ey, P, -1) + BROW[f.brow](61, ey, P, 1);
+  for (const p of f.parts) { const [g, k] = p.split(':'); if (g !== 'brows') s += PARTS[g][k](P); }
+  return s;
+}
+function cardHTML(c, v, cls = '', extra = '', set) {
+  return `<div class="tcard ${cls}" style="--c:${c.c};--ink:${c.ink};${extra}" title="${c.name}: ${c.animal}, ${(set || FACES[c.t])[v].n}">
+    <svg viewBox="0 0 100 140" aria-hidden="true">${art(c, v, set)}</svg>
+    <span class="tc-corner">${c.g}</span><span class="tc-name">${c.name}</span><span class="tc-num">${v + 1}/5</span></div>`;
+}
+function stackHTML(list, cls = '', lastNew = false, set) {
+  return `<div class="stack ${cls}" style="--n:${Math.max(list.length, 1)}">` +
+    list.map(([c, v], i) => cardHTML(c, v, lastNew && i === list.length - 1 ? 'new' : '', `--i:${i};z-index:${i}`, set)).join('') + `</div>`;
+}
+
+const byT = Object.fromEntries(CARDS.map(c => [c.t, c]));
+const bands = document.getElementById('bands');
+CARDS.forEach(c => {
+  const sec = document.createElement('section');
+  sec.className = 'band';
+  sec.style.setProperty('--c', c.c);
+  sec.innerHTML = `
+    <div class="band-head"><span class="sw"></span><h2>${c.name} · ${c.animal}</h2></div><p class="note">${RULES[c.t]}</p>
+    <div class="band-body">
+      <div class="row">${FACES[c.t].map((f, v) => `<div class="face">${cardHTML(c, v)}<small>${v + 1}. ${f.n}</small></div>`).join('')}</div>
+      <div>${stackHTML([4, 3, 2, 1, 0].map(v => [c, v]), 'mini')}<div class="stack-label">All five</div></div>
+    </div>`;
+  if (c.t === 'return') sec.querySelector('.note').textContent = RULES.return;
+  if (OPTS[c.t]) {
+    sec.querySelector('.band-body').outerHTML = OPTS[c.t].map(o => `
+      <div class="band-body">
+        <div><span class="tag">${o.key}</span> <strong>${o.title}</strong><p class="note">${o.note}</p>
+          <div class="row">${o.faces.map((f, v) => `<div class="face">${cardHTML(c, v, '', '', o.faces)}<small>${v + 1}. ${f.n}</small></div>`).join('')}</div></div>
+        <div>${stackHTML([4, 3, 2, 1, 0].map(v => [c, v]), 'mini', false, o.faces)}<div class="stack-label">All five</div></div>
+      </div>`).join('');
+  }
+  bands.appendChild(sec);
+});
+
+/* live builder */
+let pile = [[byT.return, 2], [byT.discard, 0], [byT.shatter, 1], [byT.cancel, 4], [byT.repeat, 0]];
+const mixed = document.getElementById('mixed');
+const draw = isNew => { mixed.innerHTML = stackHTML(pile, '', isNew); };
+document.getElementById('chips').innerHTML = CARDS.map(c => `<button type="button" id="add-${c.t}" data-t="${c.t}" style="--c:${c.c};--ink:${c.ink}">+ ${c.name}</button>`).join('') +
+  `<button type="button" class="plain" id="shuffle">Random pole</button><button type="button" class="plain" id="reset">Clear</button>`;
+const rnd = n => Math.floor(Math.random() * n);
+document.querySelectorAll('#chips button[data-t]').forEach(b => b.addEventListener('click', () => {
+  if (pile.length >= 7) pile = [];
+  pile.push([byT[b.dataset.t], rnd(5)]); draw(true);
+}));
+document.getElementById('shuffle').addEventListener('click', () => { pile = Array.from({ length: 5 }, () => [CARDS[rnd(5)], rnd(5)]); draw(false); });
+document.getElementById('reset').addEventListener('click', () => { pile = []; draw(false); });
+draw(false);
+</script>

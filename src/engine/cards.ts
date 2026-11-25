@@ -114,7 +114,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
     color: '#2b2b2b',
     colorName: 'Black',
     ink: '#f3efe6',
-    glyph: '✋',
+    glyph: '✕',
     text: "Look at your opponent's hand and choose one card to discard.",
     hasTarget: (s, ctx) => s.players[other(ctx.player)].hand.length > 0,
     begin(s, ctx) {

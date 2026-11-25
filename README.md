@@ -46,6 +46,8 @@ works even if the platform installs with `NODE_ENV=production`.
 | `src/engine/view.ts` | Per-player view (hides opponent hand and deck order) |
 | `src/ai/ai.ts` | Heuristic AI, decides only from its player view |
 | `src/ui/*` | React UI: board, cards, dialogs, log, rule variants |
+| `src/ui/totemArt.ts` | Totem face art (generated): five faces per card type |
+| `design/totem-faces.html` | Design page the faces were drawn on; open it in a browser to see all 25 and try stacking |
 
 The engine is a pure function `applyAction(state, player, action) → newState`. It clones
 the state, validates the action against the single `pending` decision, and throws
@@ -92,3 +94,18 @@ the deck order unless a card effect reveals them. Its counter decision is applie
 a delay, so the timing doesn't reveal that it holds two Cancels.
 
 In simulations it beats a random player about 94% of the time. AI vs AI is roughly even.
+
+### Card art
+
+Each card type is an animal carved as a totem block: Repeat is an owl, Shatter a bear,
+Discard a raven, Return a turtle and Cancel a frog. Every type has five faces, and a card's
+face comes from the number at the end of its id (`shatter-1` … `shatter-10`), so each face
+appears on two of the ten copies.
+
+The block sits in the bottom 48/140 of the card. On the table, each card in a stack sits
+exactly that much higher than the one below it, so the blocks join into one totem pole and
+only the top card shows its wings.
+
+The faces live in `design/totem-faces.html`. After changing that page, regenerate the
+game's copy with `node scripts/export-totem-art.cjs` (needs Playwright with Chromium).
+
