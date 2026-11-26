@@ -20,6 +20,8 @@ export interface PlayerView {
   oppDiscard: Card[];
   oppHandCount: number;
   deckCount: number;
+  /** Face-up row (variant); public. */
+  market: Card[];
   current: PlayerId;
   turn: number;
   stack: StackItem | null;
@@ -41,6 +43,7 @@ export function toView(s: GameState, me: PlayerId): PlayerView {
     oppDiscard: s.players[opp].discard,
     oppHandCount: s.players[opp].hand.length,
     deckCount: s.deck.length,
+    market: s.market,
     current: s.current,
     turn: s.turn,
     stack: s.stack,

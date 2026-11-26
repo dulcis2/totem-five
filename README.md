@@ -18,6 +18,8 @@ npm run dev
 ```
 
 Other scripts: `npm test` (engine + AI tests, including hundreds of simulated games),
+`npm run sim` (AI-vs-AI balance report for the rule variants listed in `src/sim/balance.test.ts`;
+`SIM_GAMES=1000 npm run sim` for more games),
 `npm run build` (typecheck + production build), `npm start` (serve `dist/` on `$PORT`, default 3000).
 
 ## Deploying to Railway
@@ -80,6 +82,12 @@ Other interpretations the document doesn't spell out, also configurable:
   completes your set wins at once). Option: after the effect.
 - **A countered card** goes to its owner's discard pile.
 - **"Either player's deck"** in Cancel's text is read as the single shared deck.
+- **Copies win:** five of a kind by default. Option: four ("Four Copies").
+- **Face-up row** (off by default): 3–5 cards lie face up next to the deck. Each draw takes one of
+  them (the row refills from the deck) or the top of the deck. A set bonus draw works the same way.
+- **Set bonus** (off by default): when the 3rd (or 4th) totem of one color enters your table, you
+  draw a card, activate that card's effect again, or choose between the two. The bonus comes after
+  the card's own effect; a countered card earns nothing. It needs a lower number than the copies win.
 - **Turn limit:** 300 turns, then a draw (a safety valve; real games last ~15 turns).
 - First player is random by default.
 

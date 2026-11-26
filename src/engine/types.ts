@@ -59,14 +59,26 @@ export interface StackItem {
 export type Pending =
   | { kind: 'play'; player: PlayerId }
   | { kind: 'counter'; player: PlayerId }
-  | { kind: 'effect'; player: PlayerId; effect: CardType; ctx: EffectContext; choice: EffectChoice };
+  | { kind: 'effect'; player: PlayerId; effect: CardType; ctx: EffectContext; choice: EffectChoice }
+  /** Face-up row variant: choose a face-up card or the top of the deck. `reason` says what happens after. */
+  | { kind: 'draw'; player: PlayerId; reason: DrawReason }
+  /** Set bonus variant ('choice' mode): draw a card or activate `card` again. */
+  | { kind: 'bonus'; player: PlayerId; card: Card };
+
+/** Why a card is being drawn: the turn's normal draw, or a set bonus. */
+export type DrawReason = 'turn' | 'bonus';
+
+export type BonusChoice = 'draw' | 'reactivate';
 
 export type Action =
   | { type: 'play'; cardId: string }
   | { type: 'counter'; use: boolean }
   | { type: 'select'; cardId: string }
   /** top: ids in order from the top of the deck; bottom: ids in order, first = placed first (ends deepest-but-one). */
-  | { type: 'arrange'; top: string[]; bottom: string[] };
+  | { type: 'arrange'; top: string[]; bottom: string[] }
+  /** cardId = a face-up card from the row; null = the top of the deck. */
+  | { type: 'draw'; cardId: string | null }
+  | { type: 'bonus'; choice: BonusChoice };
 
 export type LogKind = 'info' | 'turn' | 'play' | 'effect' | 'counter' | 'win';
 
@@ -85,6 +97,10 @@ export interface GameState {
   rng: number;
   /** Shared deck, index 0 = top. Hidden information. */
   deck: Card[];
+  /** Face-up row (variant). Visible to both players. Empty when the variant is off. */
+  market: Card[];
+  /** Set bonus earned by the card being played, granted once its effect has finished. */
+  bonus: { player: PlayerId; card: Card } | null;
   players: Record<PlayerId, PlayerState>;
   firstPlayer: PlayerId;
   current: PlayerId;

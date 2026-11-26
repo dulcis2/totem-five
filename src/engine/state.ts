@@ -65,11 +65,12 @@ export const countType = (cards: Card[], type: CardType) => cards.filter((c) => 
 
 /** Every card in the game, wherever it is. Used by invariant checks. */
 export function allCards(s: GameState): Card[] {
-  const out = [...s.deck];
+  const out = [...s.deck, ...s.market];
   for (const p of ['human', 'ai'] as const) {
     const ps = s.players[p];
     out.push(...ps.hand, ...ps.table, ...ps.discard);
   }
   if (s.stack) out.push(s.stack.card);
+  // s.bonus only references a card that is already on a table, so it is not counted.
   return out;
 }

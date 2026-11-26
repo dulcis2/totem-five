@@ -375,3 +375,9 @@ button.card { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Face-up row (variant) */
+.market { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 2px 4px; }
+.market__label { font-size: 0.82rem; color: var(--muted); }
+.market__cards { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.setting-warning { margin: 0; font-size: 0.82rem; color: var(--gold); }

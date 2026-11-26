@@ -14,6 +14,13 @@ export type EmptyDeckRule =
   /** The game immediately ends in a draw. */
   | 'endInDraw';
 
+/**
+ * Set bonus: reward for the Nth totem of the same color entering your table.
+ * 'draw': draw a card. 'reactivate': the card's effect resolves a second time.
+ * 'choice': the player picks one of the two.
+ */
+export type SetBonusRule = 'off' | 'draw' | 'reactivate' | 'choice';
+
 export interface Rules {
   // --- Setup -----------------------------------------------------------
   copiesPerType: number;
@@ -24,8 +31,20 @@ export interface Rules {
   // --- Winning ---------------------------------------------------------
   /** Distinct card types needed for "Five Colors". */
   winDistinctTypes: number;
-  /** Copies of one type needed for "Five Copies". */
+  /** Copies of one type needed for the copies win ("Five Copies", or "Four Copies" when 4). */
   winCopies: number;
+
+  // --- Drawing ----------------------------------------------------------
+  /**
+   * Size of a face-up row next to the deck. 0 = off (always draw blind from the deck).
+   * When on, each draw is either a face-up card (the row refills from the deck) or the top of the deck.
+   */
+  marketSize: number;
+
+  // --- Set bonus ----------------------------------------------------------
+  setBonus: SetBonusRule;
+  /** Which totem of the same color triggers the bonus (3 = the third one). */
+  setBonusAt: number;
 
   // --- Timing ----------------------------------------------------------
   /**
@@ -78,6 +97,11 @@ export const DEFAULT_RULES: Rules = {
 
   winDistinctTypes: 5,
   winCopies: 5,
+
+  marketSize: 0,
+
+  setBonus: 'off',
+  setBonusAt: 3,
 
   playedCardEntersTable: 'beforeEffect',
 
