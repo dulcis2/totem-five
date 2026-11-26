@@ -53,7 +53,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   repeat: {
     type: 'repeat',
     name: 'Repeat',
-    color: '#e2a83a',
+    color: '#e9b824',
     colorName: 'Yellow',
     ink: '#2a2105',
     glyph: '↻',
@@ -85,7 +85,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   shatter: {
     type: 'shatter',
     name: 'Shatter',
-    color: '#c64a33',
+    color: '#c8372d',
     colorName: 'Red',
     ink: '#ffffff',
     glyph: '✸',
@@ -111,10 +111,10 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   discard: {
     type: 'discard',
     name: 'Discard',
-    color: '#2e2723',
+    color: '#2b2b2b',
     colorName: 'Black',
     ink: '#f3efe6',
-    glyph: '✋',
+    glyph: '✕',
     text: "Look at your opponent's hand and choose one card to discard.",
     hasTarget: (s, ctx) => s.players[other(ctx.player)].hand.length > 0,
     begin(s, ctx) {
@@ -139,7 +139,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   return: {
     type: 'return',
     name: 'Return',
-    color: '#4c8a4f',
+    color: '#2e8b57',
     colorName: 'Green',
     ink: '#ffffff',
     glyph: '⟲',
@@ -164,7 +164,7 @@ export const CARD_DEFS: Record<CardType, CardDefinition> = {
   cancel: {
     type: 'cancel',
     name: 'Cancel',
-    color: '#2f77b4',
+    color: '#2a6fdb',
     colorName: 'Blue',
     ink: '#ffffff',
     glyph: '⊘',

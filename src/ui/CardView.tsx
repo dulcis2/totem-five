@@ -1,16 +1,16 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { CARD_DEFS } from '../engine/cards';
 import type { CardType } from '../engine/types';
-import { TotemFace } from './TotemFace';
+import { TOTEM_FACES, faceIndex } from './totemArt';
 
 export type CardSize = 'sm' | 'md' | 'lg';
 
 interface Props {
   type?: CardType;
+  /** The card's id; picks which of the five totem faces it shows. */
+  cardId?: string;
   faceDown?: boolean;
   size?: CardSize;
-  /** Compact carved block used for cards stacked into a totem pole. */
-  block?: boolean;
   selectable?: boolean;
   selected?: boolean;
   dim?: boolean;
@@ -21,11 +21,10 @@ interface Props {
   title?: string;
 }
 
-export function CardView({ type, faceDown, size = 'md', block, selectable, selected, dim, onClick, badge, className = '', style, title }: Props) {
+export function CardView({ type, cardId, faceDown, size = 'md', selectable, selected, dim, onClick, badge, className = '', style, title }: Props) {
   const cls = [
     'card',
     `card--${size}`,
-    block ? 'card--block' : '',
     faceDown ? 'card--back' : `card--${type}`,
     selectable ? 'is-selectable' : '',
     selected ? 'is-selected' : '',
@@ -42,28 +41,28 @@ export function CardView({ type, faceDown, size = 'md', block, selectable, selec
   }
 
   const def = CARD_DEFS[type];
-  const vars = { ...style, '--c': def.color } as CSSProperties;
+  const faces = TOTEM_FACES[type];
+  const face = faces[faceIndex(cardId, faces.length)];
+  const vars = { ...style, '--c': def.color, '--ink': def.ink } as CSSProperties;
   const content = (
     <>
-      {!block && <span className="card__band" aria-hidden />}
-      <TotemFace type={type} className="card__face" />
-      {!block && <span className="card__name">{def.name}</span>}
-      {!block && size !== 'sm' && <span className="card__text">{def.text}</span>}
-      {!block && <span className="card__band card__band--bottom" aria-hidden />}
+      <svg className="card__art" viewBox="0 0 100 140" aria-hidden dangerouslySetInnerHTML={{ __html: face.svg }} />
+      <span className="card__corner">{def.glyph}</span>
+      <span className="card__name">{def.name}</span>
+      {size !== 'sm' && <span className="card__text">{def.text}</span>}
       {badge !== undefined && <span className="card__badge">{badge}</span>}
     </>
   );
-  const label = title ?? `${def.name} — ${def.text}`;
 
   if (onClick) {
     return (
-      <button type="button" className={cls} style={vars} onClick={onClick} disabled={!selectable && !selected} title={label}>
+      <button type="button" className={cls} style={vars} onClick={onClick} disabled={!selectable && !selected} title={title ?? `${def.name} — ${def.text}`}>
         {content}
       </button>
     );
   }
   return (
-    <div className={cls} style={vars} title={label}>
+    <div className={cls} style={vars} title={title ?? `${def.name} — ${def.text}`}>
       {content}
     </div>
   );

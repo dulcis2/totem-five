@@ -37,20 +37,23 @@ export function TableZone({
         const choice = pole.find((c) => selectableIds?.includes(c.id));
         return (
           <div key={t} className={`pole ${choice ? 'pole--selectable' : ''}`}>
+            <div className="stack" style={{ ['--n' as string]: pole.length }}>
+              {pole.map((c, i) => (
+                <CardView
+                  key={c.id}
+                  type={c.type}
+                  cardId={c.id}
+                  size="sm"
+                  className={`stack__card ${c.id === highlightId ? 'is-new' : ''}`}
+                  style={{ ['--i' as string]: i }}
+                  selectable={!!choice}
+                  onClick={choice && onSelect ? () => onSelect(choice.id) : undefined}
+                />
+              ))}
+            </div>
             <span className="pole__count">
               {pole.length}/{goal}
             </span>
-            {pole.map((c) => (
-              <CardView
-                key={c.id}
-                type={c.type}
-                size="sm"
-                block
-                className={c.id === highlightId ? 'is-new' : ''}
-                selectable={!!choice}
-                onClick={choice && onSelect ? () => onSelect(choice.id) : undefined}
-              />
-            ))}
           </div>
         );
       })}
@@ -89,7 +92,7 @@ export function PileView({ cards, label, onOpen, highlight }: { cards: Card[]; l
   const top = cards[cards.length - 1];
   return (
     <button type="button" className={`pile ${highlight ? 'pile--highlight' : ''}`} onClick={onOpen} title={`${label} — click to inspect`}>
-      {top ? <CardView type={top.type} size="sm" /> : <div className="card card--sm card--empty">empty</div>}
+      {top ? <CardView type={top.type} cardId={top.id} size="sm" /> : <div className="card card--sm card--empty">empty</div>}
       <span className="pile__label">
         {label} <b>{cards.length}</b>
       </span>

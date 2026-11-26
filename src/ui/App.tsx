@@ -4,7 +4,7 @@ import { playableCards } from '../engine/engine';
 import type { GameState, LogEntry } from '../engine/types';
 import { CardView } from './CardView';
 import { ArrangeModal, CounterModal, HowToPlay, Modal, PickCardModal, RulesModal } from './Modals';
-import { TotemFace } from './TotemFace';
+import { TOTEM_FACES } from './totemArt';
 import { useGame } from './useGame';
 import { PileView, Progress, TableZone } from './Zones';
 
@@ -104,7 +104,8 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <h1 className="brand">
-          <TotemFace type="repeat" className="brand__face" />
+          {/* The owl totem's block and wings, cropped from the card art. */}
+          <svg className="brand__face" viewBox="0 66 100 74" aria-hidden dangerouslySetInnerHTML={{ __html: TOTEM_FACES.repeat[0].svg }} />
           Five Totems
         </h1>
         <div className="topbar__actions">
@@ -197,7 +198,7 @@ export function App() {
             <div className="played">
               {shown ? (
                 <>
-                  <CardView key={shown.card.id} type={shown.card.type} size="sm" className="played__card" />
+                  <CardView key={shown.card.id} type={shown.card.type} cardId={shown.card.id} size="sm" className="played__card" />
                   <span className={`played__label played__label--${shown.player}`}>{shown.label}</span>
                 </>
               ) : (
@@ -229,6 +230,7 @@ export function App() {
                 <CardView
                   key={c.id}
                   type={c.type}
+                  cardId={c.id}
                   size="md"
                   className="hand__card"
                   selectable={playable.includes(c.id)}

@@ -46,6 +46,7 @@ export function PickCardModal({ title, hint, cards, selectable, onPick, onClose 
           <CardView
             key={c.id}
             type={c.type}
+            cardId={c.id}
             size="md"
             selectable={!!onPick && (!selectable || selectable.includes(c.id))}
             onClick={onPick ? () => onPick(c.id) : undefined}
@@ -124,7 +125,7 @@ export function ArrangeModal({ cards, allowBottom, allowReorder, onConfirm }: {
           return (
             <div key={id} className={`arrange__slot ${isBottom ? 'is-bottom' : ''}`}>
               <div className="arrange__pos">{isBottom ? 'Bottom of deck' : `#${pos + 1} → ${drawers[pos]} draws`}</div>
-              <CardView type={c.type} size="md" />
+              <CardView type={c.type} cardId={c.id} size="md" />
               <div className="btn-row btn-row--tight">
                 {allowReorder && (
                   <>
