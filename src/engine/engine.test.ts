@@ -236,6 +236,121 @@ describe('turn guards', () => {
   });
 });
 
+describe('variant: copies needed', () => {
+  it('Four Copies wins with four of a kind', () => {
+    const s = setup(
+      { human: { hand: ['shatter'], table: ['shatter', 'shatter', 'shatter'] }, ai: { hand: ['repeat'] } },
+      { rules: { winCopies: 4 } },
+    );
+    const n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'shatter') });
+    expect(n.winner).toBe('human');
+    expect(n.winReason).toBe('Four Copies');
+  });
+});
+
+describe('variant: face-up row', () => {
+  it('deals the row at setup and lets the player choose a face-up card or the deck', () => {
+    const s = createGame({ seed: 3, firstPlayer: 'human', rules: { marketSize: 3 } });
+    expect(s.market).toHaveLength(3);
+    expect(s.deck).toHaveLength(50 - 4 - 5 - 3);
+    expect(s.pending).toEqual({ kind: 'draw', player: 'human', reason: 'turn' });
+    expect(checkInvariants(s)).toBeNull();
+    expect(legalActions(s, 'human')).toHaveLength(4);
+
+    const taken = s.market[1];
+    const nextDeckCard = s.deck[0];
+    const n = applyAction(s, 'human', { type: 'draw', cardId: taken.id });
+    expect(n.players.human.hand.map((c) => c.id)).toContain(taken.id);
+    expect(n.market.map((c) => c.id)).not.toContain(taken.id);
+    expect(n.market.map((c) => c.id)).toContain(nextDeckCard.id);
+    expect(n.market).toHaveLength(3);
+    expect(n.pending).toEqual({ kind: 'play', player: 'human' });
+    expect(checkInvariants(n)).toBeNull();
+
+    const d = applyAction(s, 'human', { type: 'draw', cardId: null });
+    expect(d.players.human.hand.map((c) => c.id)).toContain(nextDeckCard.id);
+    expect(d.market).toEqual(s.market);
+  });
+
+  it('rejects a card that is not in the row, and a blind draw from an empty deck', () => {
+    const s = createGame({ seed: 3, firstPlayer: 'human', rules: { marketSize: 3 } });
+    expect(() => applyAction(s, 'human', { type: 'draw', cardId: s.deck[0].id })).toThrow(IllegalActionError);
+    const empty = structuredClone(s);
+    empty.players.ai.discard.push(...empty.deck.splice(0));
+    expect(() => applyAction(empty, 'human', { type: 'draw', cardId: null })).toThrow(IllegalActionError);
+    expect(legalActions(empty, 'human')).toHaveLength(3);
+  });
+});
+
+describe('variant: set bonus', () => {
+  const third = (setBonus: Rules['setBonus'], extra: Partial<Rules> = {}) =>
+    setup(
+      { human: { hand: ['shatter'], table: ['shatter', 'shatter'] }, ai: { table: ['return', 'cancel'], hand: ['repeat'] } },
+      { rules: { setBonus, setBonusAt: 3, ...extra } },
+    );
+
+  it("'draw': the third totem of a color draws a card after its effect", () => {
+    const s = third('draw');
+    let n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'shatter') });
+    n = applyAction(n, 'human', { type: 'select', cardId: idOf(s, 'ai', 'table', 'return') });
+    expect(n.players.human.hand).toHaveLength(1);
+    expect(n.current).toBe('ai');
+    expect(checkInvariants(n)).toBeNull();
+  });
+
+  it("'reactivate': the card's effect resolves a second time", () => {
+    const s = third('reactivate');
+    let n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'shatter') });
+    n = applyAction(n, 'human', { type: 'select', cardId: idOf(s, 'ai', 'table', 'return') });
+    expect(n.pending?.kind === 'effect' && n.pending.effect).toBe('shatter');
+    n = applyAction(n, 'human', { type: 'select', cardId: idOf(s, 'ai', 'table', 'cancel') });
+    expect(n.players.ai.table).toHaveLength(0);
+    expect(n.current).toBe('ai');
+  });
+
+  it("'choice': the player picks the reward", () => {
+    const s = third('choice');
+    let n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'shatter') });
+    n = applyAction(n, 'human', { type: 'select', cardId: idOf(s, 'ai', 'table', 'return') });
+    expect(n.pending?.kind).toBe('bonus');
+    expect(legalActions(n, 'human')).toHaveLength(2);
+    const drew = applyAction(n, 'human', { type: 'bonus', choice: 'draw' });
+    expect(drew.players.human.hand).toHaveLength(1);
+    const again = applyAction(n, 'human', { type: 'bonus', choice: 'reactivate' });
+    expect(again.pending?.kind === 'effect' && again.pending.effect).toBe('shatter');
+  });
+
+  it('with the face-up row, the bonus draw is a row-or-deck choice', () => {
+    const s = third('draw', { marketSize: 3 });
+    let n = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'shatter') });
+    n = applyAction(n, 'human', { type: 'select', cardId: idOf(s, 'ai', 'table', 'return') });
+    expect(n.pending).toEqual({ kind: 'draw', player: 'human', reason: 'bonus' });
+    n = applyAction(n, 'human', { type: 'draw', cardId: n.market[0].id });
+    expect(n.players.human.hand).toHaveLength(1);
+    expect(n.current).toBe('ai');
+    expect(n.pending).toEqual({ kind: 'draw', player: 'ai', reason: 'turn' });
+  });
+
+  it('only the exact Nth totem triggers it, and a countered card does not', () => {
+    const second = setup(
+      { human: { hand: ['shatter'], table: ['shatter'] }, ai: { table: ['return'], hand: ['repeat'] } },
+      { rules: { setBonus: 'draw', setBonusAt: 3 } },
+    );
+    let n = applyAction(second, 'human', { type: 'play', cardId: idOf(second, 'human', 'hand', 'shatter') });
+    n = applyAction(n, 'human', { type: 'select', cardId: idOf(second, 'ai', 'table', 'return') });
+    expect(n.players.human.hand).toHaveLength(0);
+
+    const s = setup(
+      { human: { hand: ['shatter'], table: ['shatter', 'shatter'] }, ai: { hand: ['cancel', 'cancel'] } },
+      { rules: { setBonus: 'draw', setBonusAt: 3 } },
+    );
+    let c = applyAction(s, 'human', { type: 'play', cardId: idOf(s, 'human', 'hand', 'shatter') });
+    c = applyAction(c, 'ai', { type: 'counter', use: true });
+    expect(c.players.human.hand).toHaveLength(0);
+    expect(c.log.some((e) => e.text.includes('set bonus'))).toBe(false);
+  });
+});
+
 function playOut(seed: number, rules?: Partial<Rules>, randomHuman = false) {
   let s = createGame({ seed, rules });
   let steps = 0;
@@ -270,6 +385,13 @@ describe('full games (AI vs AI)', () => {
       { allowPlayWithoutTarget: false },
       { playedCardEntersTable: 'afterEffect' },
       { repeatCanTargetRepeat: true, counterCanBeCountered: true, cancelAllowBottom: true },
+      { winCopies: 4 },
+      { marketSize: 3 },
+      { marketSize: 5, emptyDeck: 'reshuffleDiscards' },
+      { marketSize: 3, emptyDeck: 'endInDraw' },
+      { setBonus: 'choice', setBonusAt: 3 },
+      { setBonus: 'reactivate', setBonusAt: 3, playedCardEntersTable: 'afterEffect' },
+      { setBonus: 'draw', setBonusAt: 4, marketSize: 3, winCopies: 5 },
     ];
     for (const v of variants) for (let seed = 1; seed <= 40; seed++) playOut(seed, v);
   });

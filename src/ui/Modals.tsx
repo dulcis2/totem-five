@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { CARD_DEFS, CARD_TYPES } from '../engine/cards';
-import { DEFAULT_RULES, type EmptyDeckRule, type Rules } from '../engine/rules';
+import { DEFAULT_RULES, type EmptyDeckRule, type Rules, type SetBonusRule } from '../engine/rules';
+import type { BonusChoice } from '../engine/types';
+import { copiesWinName } from '../engine/win';
 import type { Card, CardType } from '../engine/types';
 import { CardView } from './CardView';
 
@@ -156,7 +158,39 @@ export function ArrangeModal({ cards, allowBottom, allowReorder, onConfirm }: {
   );
 }
 
-export function HowToPlay({ onClose }: { onClose: () => void }) {
+const ORDINAL = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
+
+export function BonusModal({ card, nth, onDecide }: { card: CardType; nth: number; onDecide: (c: BonusChoice) => void }) {
+  return (
+    <Modal title="Set bonus!">
+      <div className="counter">
+        <CardView type={card} size="lg" />
+        <div>
+          <p>
+            That's your {ORDINAL[nth] ?? `${nth}th`} <b>{CARD_DEFS[card].name}</b> totem. Choose a reward:
+          </p>
+          <div className="btn-row">
+            <button type="button" className="btn btn--primary" onClick={() => onDecide('draw')}>
+              Draw a card
+            </button>
+            <button type="button" className="btn btn--primary" onClick={() => onDecide('reactivate')}>
+              Activate {CARD_DEFS[card].name} again
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function bonusText(r: Rules): string {
+  const nth = ORDINAL[r.setBonusAt] ?? `${r.setBonusAt}th`;
+  const reward =
+    r.setBonus === 'draw' ? 'draw a card' : r.setBonus === 'reactivate' ? "activate that card's effect again" : "choose: draw a card, or activate that card's effect again";
+  return `When the ${nth} totem of one color enters your table, ${reward} (after its effect).`;
+}
+
+export function HowToPlay({ rules, onClose }: { rules: Rules; onClose: () => void }) {
   return (
     <Modal title="How to play Five Totems" onClose={onClose} wide>
       <div className="howto">
@@ -170,9 +204,27 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
             <b>Five Colors</b> — at least one card of each of the five types, or
           </li>
           <li>
-            <b>Five Copies</b> — five cards of the same type.
+            <b>{copiesWinName(rules.winCopies)}</b> — {rules.winCopies} cards of the same type.
           </li>
         </ul>
+        {(rules.marketSize > 0 || rules.setBonus !== 'off') && (
+          <>
+            <h3>Active variants</h3>
+            <ul>
+              {rules.marketSize > 0 && (
+                <li>
+                  <b>Face-up row</b> — {rules.marketSize} cards lie face up next to the deck. When you draw, take one of them (the row refills
+                  from the deck) or draw blind from the deck.
+                </li>
+              )}
+              {rules.setBonus !== 'off' && (
+                <li>
+                  <b>Set bonus</b> — {bonusText(rules)}
+                </li>
+              )}
+            </ul>
+          </>
+        )}
         <h3>The cards</h3>
         <div className="howto__cards">
           {CARD_TYPES.map((t) => (
@@ -219,6 +271,57 @@ export function RulesModal({ rules, onApply, onClose }: { rules: Rules; onApply:
         These options cover the rules that are still open questions for the physical game. Applying them starts a new game.
       </p>
       <div className="settings">
+        <h3>Winning</h3>
+        <label className="setting setting--select">
+          <span>
+            <b>Copies needed for the copies win</b>
+            <small>Five Colors stays at five. Four makes the two wins roughly even.</small>
+          </span>
+          <select value={r.winCopies} onChange={(e) => set('winCopies', Number(e.target.value))}>
+            <option value={5}>5 — Five Copies</option>
+            <option value={4}>4 — Four Copies</option>
+          </select>
+        </label>
+        <h3>Drawing</h3>
+        <label className="setting setting--select">
+          <span>
+            <b>Face-up row</b>
+            <small>Cards lying face up next to the deck. Each draw takes one of them or the top of the deck.</small>
+          </span>
+          <select value={r.marketSize} onChange={(e) => set('marketSize', Number(e.target.value))}>
+            <option value={0}>Off — always draw from the deck</option>
+            <option value={3}>3 face-up cards</option>
+            <option value={4}>4 face-up cards</option>
+            <option value={5}>5 face-up cards</option>
+          </select>
+        </label>
+        <h3>Set bonus</h3>
+        <label className="setting setting--select">
+          <span>
+            <b>Reward for stacking one color</b>
+            <small>Granted after the card's effect, when the chosen totem of one color enters your table.</small>
+          </span>
+          <select value={r.setBonus} onChange={(e) => set('setBonus', e.target.value as SetBonusRule)}>
+            <option value="off">Off</option>
+            <option value="choice">Draw a card or activate the card again (your choice)</option>
+            <option value="draw">Draw a card</option>
+            <option value="reactivate">Activate the card again</option>
+          </select>
+        </label>
+        <label className="setting setting--select">
+          <span>
+            <b>Bonus triggers on the</b>
+          </span>
+          <select value={r.setBonusAt} disabled={r.setBonus === 'off'} onChange={(e) => set('setBonusAt', Number(e.target.value))}>
+            <option value={3}>3rd totem of a color</option>
+            <option value={4}>4th totem of a color</option>
+          </select>
+        </label>
+        {r.setBonus !== 'off' && r.setBonusAt >= r.winCopies && (
+          <p className="setting-warning">
+            With {copiesWinName(r.winCopies)}, the {ORDINAL[r.setBonusAt]} totem of a color already wins, so this bonus never happens.
+          </p>
+        )}
         <h3>Cancel — deck manipulation</h3>
         <Toggle label="Allow reordering" help="Rearrange the 3 cards you look at." checked={r.cancelAllowReorder} onChange={(v) => set('cancelAllowReorder', v)} />
         <Toggle label="Allow sending to the bottom" help="Any of the 3 cards may go to the bottom of the deck." checked={r.cancelAllowBottom} onChange={(v) => set('cancelAllowBottom', v)} />

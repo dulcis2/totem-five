@@ -3,7 +3,7 @@ import type { Card, CardType } from './types';
 
 export interface WinResult {
   won: boolean;
-  reason: 'Five Colors' | 'Five Copies' | null;
+  reason: string | null;
 }
 
 export function tableCounts(types: CardType[]): Map<CardType, number> {
@@ -29,6 +29,13 @@ export function evaluateWin(table: Card[], rules: Rules): WinResult {
     rules,
   );
   if (n.colors === 0) return { won: true, reason: 'Five Colors' };
-  if (n.copies === 0) return { won: true, reason: 'Five Copies' };
+  if (n.copies === 0) return { won: true, reason: copiesWinName(rules.winCopies) };
   return { won: false, reason: null };
+}
+
+const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+
+/** "Five Copies", "Four Copies", ... */
+export function copiesWinName(n: number): string {
+  return `${NUMBER_WORDS[n] ?? n} Copies`;
 }

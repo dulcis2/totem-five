@@ -12,7 +12,7 @@
  */
 import { CARD_TYPES } from '../engine/cards';
 import type { Rules } from '../engine/rules';
-import type { Action, Card, CardType, EffectChoice } from '../engine/types';
+import type { Action, BonusChoice, Card, CardType, EffectChoice } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { winNeeds } from '../engine/win';
 
@@ -58,7 +58,7 @@ function cardValue(t: CardType[], type: CardType, rules: Rules): number {
 /** Cards that could be in the opponent's hand or the deck, by type. */
 function unseenCounts(v: PlayerView): Record<CardType, number> {
   const out = Object.fromEntries(CARD_TYPES.map((t) => [t, v.rules.copiesPerType])) as Record<CardType, number>;
-  const seen = [...v.myHand, ...v.myTable, ...v.myDiscard, ...v.oppTable, ...v.oppDiscard];
+  const seen = [...v.myHand, ...v.myTable, ...v.myDiscard, ...v.oppTable, ...v.oppDiscard, ...v.market];
   if (v.stack) seen.push(v.stack.card);
   for (const c of seen) out[c.type] = Math.max(0, out[c.type] - 1);
   return out;
@@ -114,6 +114,52 @@ function effectValue(v: PlayerView, type: CardType, myT: CardType[], exclude: st
   }
 }
 
+/** Value of taking a card of `type` into my hand. */
+function drawValue(v: PlayerView, type: CardType, myT: CardType[]): number {
+  const r = v.rules;
+  let val = cardValue(myT, type, r) + 0.4 * effectValue(v, type, myT, []);
+  if (type === 'cancel' && v.myHand.filter((c) => c.type === 'cancel').length === r.counterCost - 1) val += pairValue(v);
+  return val;
+}
+
+/** Expected value of a blind draw from the deck. */
+function deckDrawValue(v: PlayerView, myT: CardType[]): number {
+  const unseen = unseenCounts(v);
+  const total = Object.values(unseen).reduce((a, b) => a + b, 0);
+  if (total === 0) return 0;
+  return CARD_TYPES.reduce((acc, t) => acc + (unseen[t] / total) * drawValue(v, t, myT), 0);
+}
+
+/** Score each draw option: face-up cards (with a denial bonus, since what I leave the opponent can take) or the deck. */
+function drawOptions(v: PlayerView, myT: CardType[]): { cardId: string | null; score: number }[] {
+  const r = v.rules;
+  const oppT = types(v.oppTable);
+  const opts = v.market.map((c) => ({
+    cardId: c.id as string | null,
+    score: drawValue(v, c.type, myT) + 0.5 * DEFENSE * cardValue(oppT, c.type, r),
+  }));
+  if (v.deckCount > 0) opts.push({ cardId: null, score: deckDrawValue(v, myT) });
+  return opts;
+}
+
+function bestDrawScore(v: PlayerView, myT: CardType[]): number {
+  if (v.rules.marketSize > 0 && v.market.length > 0) return Math.max(0, ...drawOptions(v, myT).map((o) => o.score));
+  return v.deckCount > 0 ? deckDrawValue(v, myT) : 0;
+}
+
+/** Value of the set bonus for `card` (assumed already on my table `myT`), and which option earns it. */
+function bonusValue(v: PlayerView, card: Card, myT: CardType[]): { value: number; choice: BonusChoice } {
+  const mode = v.rules.setBonus;
+  const draw = mode === 'reactivate' ? -Infinity : bestDrawScore(v, myT);
+  const again = mode === 'draw' ? -Infinity : effectValue(v, card.type, myT, [card.id]);
+  if (mode === 'off') return { value: 0, choice: 'draw' };
+  return draw >= again ? { value: draw, choice: 'draw' } : { value: again, choice: 'reactivate' };
+}
+
+/** Does putting one more `type` on table `t` trigger the set bonus? */
+const triggersBonus = (t: CardType[], type: CardType, rules: Rules) =>
+  rules.setBonus !== 'off' && t.filter((x) => x === type).length + 1 === rules.setBonusAt;
+
 /** Score for playing a card of `type` from my hand this turn. */
 function playScore(v: PlayerView, card: Card): number {
   const r = v.rules;
@@ -122,6 +168,7 @@ function playScore(v: PlayerView, card: Card): number {
   const afterT = r.playedCardEntersTable === 'beforeEffect' ? [...myT, card.type] : myT;
   let score = gain(myT, card.type, r);
   score += effectValue(v, card.type, afterT, [card.id]);
+  if (triggersBonus(myT, card.type, r)) score += bonusValue(v, card, [...myT, card.type]).value;
   // Keeping a counter-capable pair of Cancels has defensive value.
   if (card.type === 'cancel') {
     const cancels = v.myHand.filter((c) => c.type === 'cancel').length;
@@ -187,7 +234,11 @@ function decideCounter(v: PlayerView): Action {
     const oppT = types(v.oppTable);
     const entersFirst = r.playedCardEntersTable === 'beforeEffect';
     if (wins(oppT, st.card.type, r)) return { type: 'counter', use: true };
-    const harm = (entersFirst ? gain(oppT, st.card.type, r) * DEFENSE : 0) + threatOf(v, st.card.type);
+    let harm = (entersFirst ? gain(oppT, st.card.type, r) * DEFENSE : 0) + threatOf(v, st.card.type);
+    if (triggersBonus(oppT, st.card.type, r)) {
+      const again = r.setBonus === 'draw' ? 0 : threatOf(v, st.card.type);
+      harm += Math.max(again, r.setBonus === 'reactivate' ? 0 : 2);
+    }
     const cancels = v.myHand.filter((c) => c.type === 'cancel').length;
     const cost = COUNTER_THRESHOLD - (cancels >= r.counterCost * 2 ? 2 : 0);
     return { type: 'counter', use: harm >= cost };
@@ -275,5 +326,14 @@ export function decide(v: PlayerView): Action {
       return decideCounter(v);
     case 'effect':
       return p.choice.type === 'selectCard' ? chooseSelect(v, p.choice, p.ctx.chain) : chooseArrange(v, p.choice);
+    case 'draw': {
+      const opts = drawOptions(v, types(v.myTable));
+      const best = opts.reduce((a, b) => (b.score + Math.random() * 0.01 > a.score ? b : a), opts[0]);
+      return { type: 'draw', cardId: best?.cardId ?? null };
+    }
+    case 'bonus': {
+      const { choice } = bonusValue(v, p.card, types(v.myTable));
+      return { type: 'bonus', choice };
+    }
   }
 }

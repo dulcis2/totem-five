@@ -3,7 +3,7 @@ import { CARD_DEFS } from '../engine/cards';
 import { playableCards } from '../engine/engine';
 import type { GameState, LogEntry } from '../engine/types';
 import { CardView } from './CardView';
-import { ArrangeModal, CounterModal, HowToPlay, Modal, PickCardModal, RulesModal } from './Modals';
+import { ArrangeModal, BonusModal, CounterModal, HowToPlay, Modal, PickCardModal, RulesModal } from './Modals';
 import { TOTEM_FACES } from './totemArt';
 import { useGame } from './useGame';
 import { PileView, Progress, TableZone } from './Zones';
@@ -27,6 +27,8 @@ function phaseLabel(g: GameState): string {
   if (!p) return '';
   if (p.kind === 'play') return 'Play a card';
   if (p.kind === 'counter') return 'Reaction window';
+  if (p.kind === 'draw') return p.reason === 'bonus' ? 'Set bonus: draw' : 'Draw a card';
+  if (p.kind === 'bonus') return 'Set bonus';
   return `Resolving ${CARD_DEFS[p.effect].name}`;
 }
 
@@ -69,6 +71,9 @@ export function App() {
   const select = myEffect?.choice.type === 'selectCard' ? myEffect.choice : null;
   const arrange = myEffect?.choice.type === 'arrangeDeck' ? myEffect.choice : null;
   const myCounter = !game.winner && p?.player === 'human' && p.kind === 'counter' && game.stack;
+  const myDraw = !game.winner && p?.player === 'human' && p.kind === 'draw';
+  const myBonus = !game.winner && p?.player === 'human' && p.kind === 'bonus' ? p : null;
+  const deckDrawable = game.deck.length > 0 || (rules.emptyDeck === 'reshuffleDiscards' && human.discard.length + ai.discard.length > 0);
   const aiThinking = !game.winner && p?.player === 'ai';
   const playable = myPlay ? playableCards(game, 'human').map((c) => c.id) : [];
   const selectIds = select ? select.cards.map((c) => c.id) : [];
@@ -95,6 +100,8 @@ export function App() {
   else if (select) prompt = select.prompt;
   else if (arrange) prompt = arrange.prompt;
   else if (myCounter) prompt = 'Decide whether to counter.';
+  else if (myDraw) prompt = `${p?.kind === 'draw' && p.reason === 'bonus' ? 'Set bonus — d' : 'D'}raw: take a face-up card, or click the deck to draw blind.`;
+  else if (myBonus) prompt = 'Set bonus — choose your reward.';
   else if (aiThinking) prompt = 'AI is thinking…';
   else prompt = '';
 
@@ -151,7 +158,17 @@ export function App() {
           {/* Center */}
           <div className="center">
             <div className="deck" title="Shared deck">
-              {game.deck.length > 0 ? <CardView faceDown size="sm" /> : <div className="card card--sm card--empty">empty</div>}
+              {game.deck.length > 0 ? (
+                <CardView
+                  faceDown
+                  size="sm"
+                  selectable={myDraw && deckDrawable}
+                  onClick={myDraw && deckDrawable ? () => dispatch({ type: 'draw', cardId: null }) : undefined}
+                  title={myDraw ? 'Draw the top card of the deck' : undefined}
+                />
+              ) : (
+                <div className="card card--sm card--empty">empty</div>
+              )}
               <span className="deck__count">
                 Deck <b>{game.deck.length}</b>
               </span>
@@ -206,6 +223,26 @@ export function App() {
               )}
             </div>
           </div>
+
+          {rules.marketSize > 0 && (
+            <div className="market" aria-label="Face-up row">
+              <span className="market__label">Face-up row</span>
+              <div className="market__cards">
+                {game.market.length === 0 && <div className="zone-empty">empty</div>}
+                {game.market.map((c) => (
+                  <CardView
+                    key={c.id}
+                    type={c.type}
+                    cardId={c.id}
+                    size="sm"
+                    selectable={myDraw}
+                    onClick={myDraw ? () => dispatch({ type: 'draw', cardId: c.id }) : undefined}
+                    title={myDraw ? `Take ${CARD_DEFS[c.type].name}` : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Human side */}
           <div className={`side side--human ${game.current === 'human' && !game.winner ? 'is-active' : ''}`}>
@@ -284,7 +321,10 @@ export function App() {
           onClose={() => setInspect(null)}
         />
       )}
-      {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}
+      {myBonus && (
+        <BonusModal card={myBonus.card.type} nth={rules.setBonusAt} onDecide={(choice) => dispatch({ type: 'bonus', choice })} />
+      )}
+      {showHelp && <HowToPlay rules={rules} onClose={() => setShowHelp(false)} />}
       {showRules && (
         <RulesModal
           rules={rules}

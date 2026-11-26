@@ -1,7 +1,7 @@
 import { CARD_DEFS, CARD_TYPES } from '../engine/cards';
 import type { Rules } from '../engine/rules';
 import type { Card, CardType } from '../engine/types';
-import { winNeeds } from '../engine/win';
+import { copiesWinName, winNeeds } from '../engine/win';
 import { CardView } from './CardView';
 
 /**
@@ -80,7 +80,7 @@ export function Progress({ cards, rules }: { cards: Card[]; rules: Rules }) {
         ))}
         <span className="progress__label">{rules.winDistinctTypes - n.colors}/{rules.winDistinctTypes} colors</span>
       </div>
-      <div className="progress__copies" title="Five Copies progress">
+      <div className="progress__copies" title={`${copiesWinName(rules.winCopies)} progress`}>
         {best}/{rules.winCopies} copies
       </div>
     </div>

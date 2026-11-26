@@ -6,12 +6,12 @@
  * which case the caller keeps the old state).
  *
  * Flow of a turn:
- *   startTurn -> draw -> pending 'play'
+ *   startTurn -> draw (or pending 'draw' with the face-up row variant) -> pending 'play'
  *   play      -> card goes onto the stack -> counter window(s) -> finishPlay
  *   finishPlay-> (cancelled: card to discard, end turn)
  *              | card enters table, win check, begin effect
  *   effect    -> pending 'effect' choices (possibly nested via Repeat) -> completeEffect
- *   completeEffect -> win check -> endTurn -> startTurn(other player)
+ *   completeEffect -> win check -> set bonus (variant) -> endTurn -> startTurn(other player)
  */
 import { CARD_DEFS, CARD_TYPES } from './cards';
 import { DEFAULT_RULES, type Rules } from './rules';
@@ -27,7 +27,7 @@ import {
   subj,
   verb,
 } from './state';
-import type { Action, Card, EffectContext, GameState, PlayerId } from './types';
+import type { Action, BonusChoice, Card, DrawReason, EffectContext, GameState, PlayerId } from './types';
 import { evaluateWin } from './win';
 
 export { IllegalActionError, other } from './state';
@@ -46,6 +46,8 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     seed,
     rng: seed,
     deck: [],
+    market: [],
+    bonus: null,
     players: {
       human: { hand: [], table: [], discard: [] },
       ai: { hand: [], table: [], discard: [] },
@@ -73,6 +75,7 @@ export function createGame(opts: NewGameOptions = {}): GameState {
   s.current = first;
   s.players[first].hand.push(...s.deck.splice(0, rules.startingHandFirst));
   s.players[other(first)].hand.push(...s.deck.splice(0, rules.startingHandSecond));
+  refillMarket(s);
   log(s, 'info', `New game. ${first === 'human' ? 'You go' : 'AI goes'} first.`);
 
   startTurn(s);
@@ -113,6 +116,16 @@ export function legalActions(s: GameState, player: PlayerId): Action[] {
     case 'effect':
       if (p.choice.type === 'selectCard') return p.choice.cards.map((c) => ({ type: 'select', cardId: c.id }));
       return [{ type: 'arrange', top: p.choice.cards.map((c) => c.id), bottom: [] }];
+    case 'draw': {
+      const acts: Action[] = s.market.map((c) => ({ type: 'draw', cardId: c.id }));
+      if (canDrawFromDeck(s)) acts.push({ type: 'draw', cardId: null });
+      return acts;
+    }
+    case 'bonus':
+      return [
+        { type: 'bonus', choice: 'draw' },
+        { type: 'bonus', choice: 'reactivate' },
+      ];
   }
 }
 
@@ -181,6 +194,33 @@ export function applyAction(state: GameState, player: PlayerId, action: Action):
       break;
     }
 
+    case 'draw': {
+      if (p.kind !== 'draw') throw new IllegalActionError('You cannot draw now');
+      if (action.cardId) {
+        const idx = s.market.findIndex((c) => c.id === action.cardId);
+        if (idx < 0) throw new IllegalActionError('That card is not in the face-up row');
+        const [card] = s.market.splice(idx, 1);
+        s.players[player].hand.push(card);
+        log(s, 'info', `${subj(player)} ${verb(player, 'take')} ${CARD_DEFS[card.type].name} from the face-up row.`, player);
+      } else {
+        if (!canDrawFromDeck(s)) throw new IllegalActionError('The deck is empty');
+        drawCard(s, player);
+        log(s, 'info', `${subj(player)} ${verb(player, 'draw')} from the deck.`, player);
+      }
+      s.pending = null;
+      refillMarket(s);
+      afterDraw(s, player, p.reason);
+      break;
+    }
+
+    case 'bonus': {
+      if (p.kind !== 'bonus') throw new IllegalActionError('There is no bonus to choose');
+      if (action.choice !== 'draw' && action.choice !== 'reactivate') throw new IllegalActionError('Unknown bonus');
+      s.pending = null;
+      applyBonus(s, { player, card: p.card }, action.choice);
+      break;
+    }
+
     default:
       throw new IllegalActionError('Unknown action');
   }
@@ -219,6 +259,7 @@ function finishPlay(s: GameState) {
     s.players[st.owner].table.push(st.card);
     s.stack = null;
     if (checkWin(s)) return;
+    noteSetBonus(s, st.owner, st.card);
   }
   beginEffect(s, {
     player: st.owner,
@@ -240,11 +281,42 @@ function completeEffect(s: GameState) {
   if (checkWin(s)) return;
   if (s.stack) {
     // 'afterEffect' timing: the played card lands now.
-    s.players[s.stack.owner].table.push(s.stack.card);
+    const { owner, card } = s.stack;
+    s.players[owner].table.push(card);
     s.stack = null;
     if (checkWin(s)) return;
+    noteSetBonus(s, owner, card);
+  }
+  if (s.bonus) {
+    const b = s.bonus;
+    s.bonus = null;
+    if (s.rules.setBonus === 'choice') s.pending = { kind: 'bonus', player: b.player, card: b.card };
+    else applyBonus(s, b, s.rules.setBonus === 'draw' ? 'draw' : 'reactivate');
+    return;
   }
   endTurn(s);
+}
+
+const ORDINALS = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+
+/** Set bonus variant: the Nth totem of one color earns a bonus, granted after the card's effect. */
+function noteSetBonus(s: GameState, player: PlayerId, card: Card) {
+  const r = s.rules;
+  if (r.setBonus === 'off') return;
+  if (countType(s.players[player].table, card.type) !== r.setBonusAt) return;
+  s.bonus = { player, card };
+  const nth = ORDINALS[r.setBonusAt] ?? `${r.setBonusAt}th`;
+  log(s, 'effect', `${subj(player)} ${verb(player, 'stack')} a ${nth} ${CARD_DEFS[card.type].name} — set bonus!`, player);
+}
+
+function applyBonus(s: GameState, b: { player: PlayerId; card: Card }, choice: BonusChoice) {
+  if (choice === 'draw') {
+    log(s, 'effect', `Set bonus: ${subj(b.player)} ${verb(b.player, 'draw')} a card.`, b.player);
+    beginDraw(s, b.player, 'bonus');
+    return;
+  }
+  log(s, 'effect', `Set bonus: ${subj(b.player)} ${verb(b.player, 'activate')} ${CARD_DEFS[b.card.type].name} again.`, b.player);
+  beginEffect(s, { player: b.player, sourceCardId: b.card.id, sourceType: b.card.type, chain: [b.card.id], depth: 0 });
 }
 
 /** Checks both players (current player first). Ends the game if someone has won. */
@@ -280,12 +352,13 @@ function endTurn(s: GameState) {
   startTurn(s);
 }
 
-function drawCard(s: GameState, p: PlayerId) {
+/** Refill an empty deck according to the empty-deck rule. Returns false if the game ended. */
+function refillDeck(s: GameState): boolean {
   if (s.deck.length === 0) {
     switch (s.rules.emptyDeck) {
       case 'endInDraw':
         endGameDraw(s, 'the deck ran out');
-        return;
+        return false;
       case 'reshuffleDiscards': {
         const pile = [...s.players.human.discard, ...s.players.ai.discard];
         if (pile.length > 0) {
@@ -300,6 +373,31 @@ function drawCard(s: GameState, p: PlayerId) {
         break;
     }
   }
+  return !s.winner;
+}
+
+function canDrawFromDeck(s: GameState): boolean {
+  return (
+    s.deck.length > 0 ||
+    (s.rules.emptyDeck === 'reshuffleDiscards' && s.players.human.discard.length + s.players.ai.discard.length > 0)
+  );
+}
+
+/** Face-up row variant: top the row back up from the deck. */
+function refillMarket(s: GameState) {
+  while (s.market.length < s.rules.marketSize) {
+    if (s.deck.length === 0) {
+      // Only a reshuffle may refill the deck here; 'endInDraw' waits for an actual draw.
+      if (s.rules.emptyDeck !== 'reshuffleDiscards') return;
+      refillDeck(s);
+      if (s.deck.length === 0) return;
+    }
+    s.market.push(s.deck.shift()!);
+  }
+}
+
+function drawCard(s: GameState, p: PlayerId) {
+  if (!refillDeck(s)) return;
   if (s.deck.length === 0) {
     log(s, 'info', `The deck is empty — ${subj(p)} ${p === 'human' ? 'draw' : 'draws'} nothing.`, p);
     return;
@@ -307,12 +405,22 @@ function drawCard(s: GameState, p: PlayerId) {
   s.players[p].hand.push(s.deck.shift()!);
 }
 
-function startTurn(s: GameState) {
-  s.turn += 1;
-  const p = s.current;
-  log(s, 'turn', `Turn ${s.turn}: ${p === 'human' ? 'your' : "AI's"} turn.`, p);
+/** Draw for `p`: with the face-up row variant the player chooses, otherwise the top of the deck. */
+function beginDraw(s: GameState, p: PlayerId, reason: DrawReason) {
+  if (s.rules.marketSize > 0 && s.market.length > 0) {
+    s.pending = { kind: 'draw', player: p, reason };
+    return;
+  }
   drawCard(s, p);
+  afterDraw(s, p, reason);
+}
+
+function afterDraw(s: GameState, p: PlayerId, reason: DrawReason) {
   if (s.winner) return;
+  if (reason === 'bonus') {
+    endTurn(s);
+    return;
+  }
 
   if (playableCards(s, p).length === 0) {
     const handEmpty = s.players[p].hand.length === 0;
@@ -321,7 +429,7 @@ function startTurn(s: GameState) {
     const oppStuck = playableCards(s, other(p)).length === 0;
     const canRefill =
       s.rules.emptyDeck === 'reshuffleDiscards' && s.players.human.discard.length + s.players.ai.discard.length > 0;
-    if (s.deck.length === 0 && oppStuck && !canRefill) {
+    if (s.deck.length === 0 && s.market.length === 0 && oppStuck && !canRefill) {
       endGameDraw(s, 'no player can make a move');
       return;
     }
@@ -329,6 +437,13 @@ function startTurn(s: GameState) {
     return;
   }
   s.pending = { kind: 'play', player: p };
+}
+
+function startTurn(s: GameState) {
+  s.turn += 1;
+  const p = s.current;
+  log(s, 'turn', `Turn ${s.turn}: ${p === 'human' ? 'your' : "AI's"} turn.`, p);
+  beginDraw(s, p, 'turn');
 }
 
 /** Sanity check used by tests: every card exists exactly once. */
