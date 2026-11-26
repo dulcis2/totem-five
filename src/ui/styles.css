@@ -193,14 +193,7 @@ button.card { cursor: default; font: inherit; }
   padding: 0 5px;
 }
 
-.card--back {
-  background: repeating-linear-gradient(90deg, #7a5532 0 5px, var(--wood) 5px 11px);
-  justify-content: center;
-  padding: 0;
-}
-.card__knot { width: 46%; aspect-ratio: 1; border-radius: 50%; border: 3px solid #f0d9a8; display: grid; place-items: center; }
-.card__knot::after { content: ''; width: 40%; aspect-ratio: 1; border-radius: 50%; background: #f0d9a8; }
-.card--sm .card__knot { border-width: 2px; }
+.card--back { background: #3a2517; padding: 0; }
 .card--empty {
   background: transparent;
   border: 2px dashed rgba(107, 74, 43, 0.4);

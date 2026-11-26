@@ -106,6 +106,8 @@ The block sits in the bottom 48/140 of the card. On the table, each card in a st
 exactly that much higher than the one below it, so the blocks join into one totem pole and
 only the top card shows its wings.
 
+Card backs show all five animals stacked as one small totem pole (`src/ui/cardBack.ts`).
+
 The faces live in `design/totem-faces.html`. After changing that page, regenerate the
 game's copy with `node scripts/export-totem-art.cjs` (needs Playwright with Chromium).
 

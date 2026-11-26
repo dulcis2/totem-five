@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { CARD_DEFS } from '../engine/cards';
 import type { CardType } from '../engine/types';
 import { TOTEM_FACES, faceIndex } from './totemArt';
+import { CARD_BACK_SVG } from './cardBack';
 
 export type CardSize = 'sm' | 'md' | 'lg';
 
@@ -35,7 +36,7 @@ export function CardView({ type, cardId, faceDown, size = 'md', selectable, sele
   if (faceDown || !type) {
     return (
       <div className={cls} style={style} aria-label="Face-down card">
-        <span className="card__knot" aria-hidden />
+        <svg className="card__art" viewBox="0 0 100 140" aria-hidden dangerouslySetInnerHTML={{ __html: CARD_BACK_SVG }} />
       </div>
     );
   }
