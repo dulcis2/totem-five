@@ -171,12 +171,7 @@ button.card { cursor: default; }
   border-radius: 6px;
   padding: 0 5px;
 }
-.card--back {
-  background: repeating-linear-gradient(45deg, #2a1c12 0 6px, #34241a 6px 12px);
-  border-color: #1a110a;
-}
-.card__back-art { margin: auto; display: flex; gap: 2px; height: 50%; }
-.card__back-art span { width: calc(var(--w) * 0.08); border-radius: 2px; opacity: 0.85; }
+.card--back { background: #3a2517; }
 .card--empty {
   background: transparent;
   border: 2px dashed rgba(255, 255, 255, 0.2);
